@@ -1,3 +1,19 @@
-param([string] $version, [string] $key)
+param(
+    [Parameter(Mandatory = $true)][string] $version,
+    [Parameter(Mandatory = $true)][string] $key
+)
 
-dotnet nuget push ../templates/Skoruba.Duende.IdentityServer.Admin.Templates.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$packagePath = Resolve-Path (Join-Path $PSScriptRoot "../templates/Skoruba.Duende.IdentityServer.Admin.Templates.$version.nupkg") -ErrorAction SilentlyContinue
+
+if (-not $packagePath) {
+    throw "Template package not found for version $version."
+}
+
+dotnet nuget push $packagePath.Path -k $key -s https://api.nuget.org/v3/index.json --skip-duplicate
+
+if ($LASTEXITCODE -ne 0) {
+    throw "dotnet nuget push failed for template package $($packagePath.Path)."
+}

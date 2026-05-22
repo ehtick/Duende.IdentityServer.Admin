@@ -1,19 +1,25 @@
-param([string] $version, [string] $key)
+param(
+    [Parameter(Mandatory = $true)][string] $version,
+    [Parameter(Mandatory = $true)][string] $key
+)
 
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.BusinessLogic.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Shared.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.EntityFramework.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.EntityFramework.Admin.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.EntityFramework.Admin.Storage.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.EntityFramework.Extensions.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.EntityFramework.Identity.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.EntityFramework.Shared.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
+$packagesDir = Join-Path $PSScriptRoot "packages"
+$packages = Get-ChildItem -Path $packagesDir -Filter "*.$version.nupkg" -File |
+    Where-Object { $_.Name -notlike "*.symbols.nupkg" } |
+    Sort-Object Name
 
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.EntityFramework.Configuration.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Shared.Configuration.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
+if (-not $packages) {
+    throw "No NuGet packages were found in $packagesDir for version $version."
+}
 
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.UI.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.UI.Spa.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
-dotnet nuget push ./packages/Skoruba.Duende.IdentityServer.Admin.UI.Api.$version.nupkg -k $key -s https://api.nuget.org/v3/index.json
+foreach ($package in $packages) {
+    Write-Host "Publishing $($package.Name)"
+    dotnet nuget push $package.FullName -k $key -s https://api.nuget.org/v3/index.json --skip-duplicate
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "dotnet nuget push failed for $($package.FullName)."
+    }
+}
