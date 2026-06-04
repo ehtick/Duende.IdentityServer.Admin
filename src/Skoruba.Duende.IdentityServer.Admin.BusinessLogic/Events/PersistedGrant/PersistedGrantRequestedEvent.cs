@@ -3,6 +3,7 @@
 
 using Skoruba.AuditLogging.Events;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.Grant;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.PersistedGrant
 {
@@ -12,7 +13,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.PersistedGran
 
         public PersistedGrantRequestedEvent(PersistedGrantDto persistedGrant)
         {
-            PersistedGrant = persistedGrant;
+            PersistedGrant = AuditEventDataSanitizer.Sanitize(persistedGrant);
         }
     }
 }

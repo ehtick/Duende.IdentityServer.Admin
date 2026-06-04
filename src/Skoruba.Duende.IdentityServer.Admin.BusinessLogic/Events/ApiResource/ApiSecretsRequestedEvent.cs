@@ -1,23 +1,19 @@
 ﻿// Copyright (c) Jan Škoruba. All Rights Reserved.
 // Licensed under the Apache License, Version 2.0.
 
-using System;
-using System.Collections.Generic;
 using Skoruba.AuditLogging.Events;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.Configuration;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.ApiResource
 {
     public class ApiSecretsRequestedEvent : AuditEvent
     {
-        public int ApiResourceId { get; set; }
+        public ApiSecretsDto ApiSecrets { get; set; }
 
-        public List<(int apiSecretId, string type, DateTime? expiration)> Secrets { get; set; }
-
-
-        public ApiSecretsRequestedEvent(int apiResourceId, List<(int apiSecretId, string type, DateTime? expiration)> secrets)
+        public ApiSecretsRequestedEvent(ApiSecretsDto apiSecrets)
         {
-            ApiResourceId = apiResourceId;
-            Secrets = secrets;
+            ApiSecrets = AuditEventDataSanitizer.Sanitize(apiSecrets);
         }
     }
 }

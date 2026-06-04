@@ -3,6 +3,7 @@
 
 using Skoruba.AuditLogging.Events;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.IdentityProvider;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.IdentityProvider
 {
@@ -13,8 +14,8 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.IdentityProvi
 
         public IdentityProviderUpdatedEvent(IdentityProviderDto originalIdentityProvider, IdentityProviderDto identityProvider)
         {
-            OriginalIdentityProvider = originalIdentityProvider;
-            IdentityProvider = identityProvider;
+            OriginalIdentityProvider = AuditEventDataSanitizer.Sanitize(originalIdentityProvider);
+            IdentityProvider = AuditEventDataSanitizer.Sanitize(identityProvider);
         }
     }
 }

@@ -1,22 +1,19 @@
 ﻿// Copyright (c) Jan Škoruba. All Rights Reserved.
 // Licensed under the Apache License, Version 2.0.
 
-using System;
-using System.Collections.Generic;
 using Skoruba.AuditLogging.Events;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.Configuration;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.Client
 {
     public class ClientSecretsRequestedEvent : AuditEvent
     {
-        public int ClientId { get; set; }
+        public ClientSecretsDto ClientSecrets { get; set; }
 
-        public List<(int clientSecretId, string type, DateTime? expiration)> Secrets { get; set; }
-
-        public ClientSecretsRequestedEvent(int clientId, List<(int clientSecretId, string type, DateTime? expiration)> secrets)
+        public ClientSecretsRequestedEvent(ClientSecretsDto clientSecrets)
         {
-            ClientId = clientId;
-            Secrets = secrets;
+            ClientSecrets = AuditEventDataSanitizer.Sanitize(clientSecrets);
         }
     }
 }

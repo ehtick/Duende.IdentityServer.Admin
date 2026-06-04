@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Skoruba.AuditLogging.Services;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.ApiResource;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Mappers;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Resources;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Services;
@@ -70,6 +71,21 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Services
             var apiResourceService = GetApiResourceService(apiResourceRepository, localizerApiResource, clientService, auditLogger);
 
             return apiResourceService;
+        }
+
+        private IApiResourceService GetApiResourceService(IdentityServerConfigurationDbContext context, IAuditEventLogger auditEventLogger)
+        {
+            var apiResourceRepository = GetApiResourceRepository(context);
+            var clientRepository = GetClientRepository(context);
+
+            var localizerApiResourceMock = new Mock<IApiResourceServiceResources>();
+            var localizerApiResource = localizerApiResourceMock.Object;
+
+            var localizerClientResourceMock = new Mock<IClientServiceResources>();
+            var localizerClientResource = localizerClientResourceMock.Object;
+
+            var clientService = GetClientService(clientRepository, localizerClientResource, auditEventLogger);
+            return GetApiResourceService(apiResourceRepository, localizerApiResource, clientService, auditEventLogger);
         }
 
         private IdentityServerConfigurationDbContext GetDbContext()
@@ -237,9 +253,90 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Services
 
                 //Assert secret value
                 secretsDto.Value.Should().Be(apiSecretsDto.Value);
+                newApiSecret.Value.Should().BeNull();
 
                 //Assert
                 secretsDto.Should().BeEquivalentTo(newApiSecret, o => o.Excluding(x => x.ApiResourceName).Excluding(x => x.Value));
+            }
+        }
+
+        [Fact]
+        public async Task GetApiSecretsAsync_RedactsSecretValues()
+        {
+            using (var context = GetDbContext())
+            {
+                var apiResourceService = GetApiResourceService(context);
+                var apiResourceDto = ApiResourceDtoMock.GenerateRandomApiResource(0);
+
+                await apiResourceService.AddApiResourceAsync(apiResourceDto);
+
+                var apiResource = await context.ApiResources.Where(x => x.Name == apiResourceDto.Name).SingleOrDefaultAsync();
+                var apiSecretsDto = ApiResourceDtoMock.GenerateRandomApiSecret(0, apiResource.Id);
+
+                await apiResourceService.AddApiSecretAsync(apiSecretsDto);
+
+                var secretsDto = await apiResourceService.GetApiSecretsAsync(apiResource.Id);
+
+                secretsDto.ApiSecrets.Should().NotBeEmpty();
+                secretsDto.ApiSecrets.Should().OnlyContain(x => x.Value == null);
+            }
+        }
+
+        [Fact]
+        public async Task GetApiSecretsAsync_AuditEvent_RedactsSecretValues()
+        {
+            using (var context = GetDbContext())
+            {
+                var auditLoggerMock = new Mock<IAuditEventLogger>();
+                auditLoggerMock
+                    .Setup(x => x.LogEventAsync(It.IsAny<ApiSecretsRequestedEvent>()))
+                    .Returns(Task.CompletedTask);
+
+                var apiResourceService = GetApiResourceService(context, auditLoggerMock.Object);
+                var apiResourceDto = ApiResourceDtoMock.GenerateRandomApiResource(0);
+
+                await apiResourceService.AddApiResourceAsync(apiResourceDto);
+
+                var apiResource = await context.ApiResources.Where(x => x.Name == apiResourceDto.Name).SingleOrDefaultAsync();
+                var apiSecretsDto = ApiResourceDtoMock.GenerateRandomApiSecret(0, apiResource.Id);
+
+                await apiResourceService.AddApiSecretAsync(apiSecretsDto);
+
+                await apiResourceService.GetApiSecretsAsync(apiResource.Id);
+
+                auditLoggerMock.Verify(x => x.LogEventAsync(It.Is<ApiSecretsRequestedEvent>(e =>
+                    e.ApiSecrets.ApiSecrets.Count > 0 &&
+                    e.ApiSecrets.ApiSecrets.All(s => s.Value == null))), Times.Once);
+            }
+        }
+
+        [Fact]
+        public async Task GetApiSecretAsync_AuditEvent_RedactsSecretValue()
+        {
+            using (var context = GetDbContext())
+            {
+                var auditLoggerMock = new Mock<IAuditEventLogger>();
+                auditLoggerMock
+                    .Setup(x => x.LogEventAsync(It.IsAny<ApiSecretRequestedEvent>()))
+                    .Returns(Task.CompletedTask);
+
+                var apiResourceService = GetApiResourceService(context, auditLoggerMock.Object);
+                var apiResourceDto = ApiResourceDtoMock.GenerateRandomApiResource(0);
+
+                await apiResourceService.AddApiResourceAsync(apiResourceDto);
+
+                var apiResource = await context.ApiResources.Where(x => x.Name == apiResourceDto.Name).SingleOrDefaultAsync();
+                var apiSecretsDto = ApiResourceDtoMock.GenerateRandomApiSecret(0, apiResource.Id);
+
+                await apiResourceService.AddApiSecretAsync(apiSecretsDto);
+
+                var apiSecret = await context.ApiSecrets.Where(x => x.Value == apiSecretsDto.Value && x.ApiResource.Id == apiResource.Id)
+                    .SingleOrDefaultAsync();
+
+                await apiResourceService.GetApiSecretAsync(apiSecret.Id);
+
+                auditLoggerMock.Verify(x => x.LogEventAsync(It.Is<ApiSecretRequestedEvent>(e =>
+                    e.ApiSecret.Value == null)), Times.Once);
             }
         }
 
