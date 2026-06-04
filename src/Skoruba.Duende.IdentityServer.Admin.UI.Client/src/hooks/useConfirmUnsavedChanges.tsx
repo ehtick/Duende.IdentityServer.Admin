@@ -13,6 +13,20 @@ import { Button } from "@/components/ui/button";
 import { FieldValues, UseFormReturn } from "react-hook-form";
 import { useDirtyGuard } from "@/contexts/DirtyGuardContext";
 
+let pendingAllowedNavigations = 0;
+
+function withUnsavedChangesBypass(action: () => void) {
+  pendingAllowedNavigations += 1;
+
+  try {
+    action();
+  } finally {
+    window.setTimeout(() => {
+      pendingAllowedNavigations = Math.max(0, pendingAllowedNavigations - 1);
+    }, 0);
+  }
+}
+
 export function useNavigateWithBlocker<T extends FieldValues>(
   form: UseFormReturn<T>
 ) {
@@ -20,8 +34,8 @@ export function useNavigateWithBlocker<T extends FieldValues>(
   return useCallback(
     (url: string) => {
       form.reset(form.getValues());
-      setTimeout(() => {
-        navigate(url);
+      window.setTimeout(() => {
+        withUnsavedChangesBypass(() => navigate(url));
       }, 0);
     },
     [form, navigate]
@@ -35,8 +49,8 @@ export function useNavigateWithBlockerInWizard() {
   return useCallback(
     (url: string) => {
       reset();
-      setTimeout(() => {
-        navigate(url);
+      window.setTimeout(() => {
+        withUnsavedChangesBypass(() => navigate(url));
       }, 0);
     },
     [navigate, reset]
@@ -50,6 +64,7 @@ export function useConfirmUnsavedChanges(isDirty: boolean) {
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
+      pendingAllowedNavigations === 0 &&
       isDirty && currentLocation.pathname !== nextLocation.pathname
   );
 
@@ -75,7 +90,9 @@ export function useConfirmUnsavedChanges(isDirty: boolean) {
       confirm().then((confirmed) => {
         if (confirmed) {
           blocker.proceed();
+          return;
         }
+
         blocker.reset();
       });
     }
