@@ -18,20 +18,31 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers
         public static ClientDto Sanitize(ClientDto client)
         {
             var sanitizedClient = Clone(client);
-            if (sanitizedClient?.ClientSecrets == null)
-            {
-                return sanitizedClient;
-            }
-
-            foreach (var secret in sanitizedClient.ClientSecrets)
-            {
-                if (secret != null)
-                {
-                    secret.Value = null;
-                }
-            }
-
+            SanitizeClient(sanitizedClient);
             return sanitizedClient;
+        }
+
+        public static ClientCloneDto Sanitize(ClientCloneDto client)
+        {
+            var sanitizedClient = Clone(client);
+            SanitizeClient(sanitizedClient);
+            return sanitizedClient;
+        }
+
+        public static ClientsDto Sanitize(ClientsDto clients)
+        {
+            var sanitizedClients = Clone(clients);
+            if (sanitizedClients?.Clients == null)
+            {
+                return sanitizedClients;
+            }
+
+            foreach (var client in sanitizedClients.Clients)
+            {
+                SanitizeClient(client);
+            }
+
+            return sanitizedClients;
         }
 
         public static ClientSecretsDto Sanitize(ClientSecretsDto clientSecrets)
@@ -163,6 +174,169 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers
             }
 
             return sanitizedIdentityProviders;
+        }
+
+        public static ApiScopeDto Sanitize(ApiScopeDto apiScope)
+        {
+            var sanitizedApiScope = Clone(apiScope);
+            SanitizeApiScope(sanitizedApiScope);
+            return sanitizedApiScope;
+        }
+
+        public static ApiScopesDto Sanitize(ApiScopesDto apiScopes)
+        {
+            var sanitizedApiScopes = Clone(apiScopes);
+            if (sanitizedApiScopes?.Scopes == null)
+            {
+                return sanitizedApiScopes;
+            }
+
+            foreach (var apiScope in sanitizedApiScopes.Scopes)
+            {
+                SanitizeApiScope(apiScope);
+            }
+
+            return sanitizedApiScopes;
+        }
+
+        public static ClientPropertiesDto Sanitize(ClientPropertiesDto properties)
+        {
+            var sanitizedProperties = Clone(properties);
+            if (sanitizedProperties == null)
+            {
+                return null;
+            }
+
+            sanitizedProperties.Value = null;
+            if (sanitizedProperties.ClientProperties != null)
+            {
+                foreach (var property in sanitizedProperties.ClientProperties)
+                {
+                    if (property != null)
+                    {
+                        property.Value = null;
+                    }
+                }
+            }
+
+            return sanitizedProperties;
+        }
+
+        public static ApiResourcePropertiesDto Sanitize(ApiResourcePropertiesDto properties)
+        {
+            var sanitizedProperties = Clone(properties);
+            if (sanitizedProperties == null)
+            {
+                return null;
+            }
+
+            sanitizedProperties.Value = null;
+            if (sanitizedProperties.ApiResourceProperties != null)
+            {
+                foreach (var property in sanitizedProperties.ApiResourceProperties)
+                {
+                    if (property != null)
+                    {
+                        property.Value = null;
+                    }
+                }
+            }
+
+            return sanitizedProperties;
+        }
+
+        public static ApiScopePropertiesDto Sanitize(ApiScopePropertiesDto properties)
+        {
+            var sanitizedProperties = Clone(properties);
+            if (sanitizedProperties == null)
+            {
+                return null;
+            }
+
+            sanitizedProperties.Value = null;
+            if (sanitizedProperties.ApiScopeProperties != null)
+            {
+                foreach (var property in sanitizedProperties.ApiScopeProperties)
+                {
+                    if (property != null)
+                    {
+                        property.Value = null;
+                    }
+                }
+            }
+
+            return sanitizedProperties;
+        }
+
+        public static IdentityResourcePropertiesDto Sanitize(IdentityResourcePropertiesDto properties)
+        {
+            var sanitizedProperties = Clone(properties);
+            if (sanitizedProperties == null)
+            {
+                return null;
+            }
+
+            sanitizedProperties.Value = null;
+            if (sanitizedProperties.IdentityResourceProperties != null)
+            {
+                foreach (var property in sanitizedProperties.IdentityResourceProperties)
+                {
+                    if (property != null)
+                    {
+                        property.Value = null;
+                    }
+                }
+            }
+
+            return sanitizedProperties;
+        }
+
+        private static void SanitizeClient(ClientDto client)
+        {
+            if (client == null)
+            {
+                return;
+            }
+
+            client.PairWiseSubjectSalt = null;
+
+            if (client.ClientSecrets != null)
+            {
+                foreach (var secret in client.ClientSecrets)
+                {
+                    if (secret != null)
+                    {
+                        secret.Value = null;
+                    }
+                }
+            }
+
+            if (client.Properties != null)
+            {
+                foreach (var property in client.Properties)
+                {
+                    if (property != null)
+                    {
+                        property.Value = null;
+                    }
+                }
+            }
+        }
+
+        private static void SanitizeApiScope(ApiScopeDto apiScope)
+        {
+            if (apiScope?.ApiScopeProperties == null)
+            {
+                return;
+            }
+
+            foreach (var property in apiScope.ApiScopeProperties)
+            {
+                if (property != null)
+                {
+                    property.Value = null;
+                }
+            }
         }
 
         private static T Clone<T>(T source)

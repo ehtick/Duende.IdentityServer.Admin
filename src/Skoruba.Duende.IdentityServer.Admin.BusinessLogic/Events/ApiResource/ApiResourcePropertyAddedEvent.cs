@@ -3,6 +3,7 @@
 
 using Skoruba.AuditLogging.Events;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.Configuration;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.ApiResource
 {
@@ -10,7 +11,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.ApiResource
     {
         public ApiResourcePropertyAddedEvent(ApiResourcePropertiesDto apiResourceProperty)
         {
-            ApiResourceProperty = apiResourceProperty;
+            ApiResourceProperty = AuditEventDataSanitizer.Sanitize(apiResourceProperty);
         }
 
         public ApiResourcePropertiesDto ApiResourceProperty { get; set; }

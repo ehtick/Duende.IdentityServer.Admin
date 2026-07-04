@@ -3,6 +3,7 @@
 
 using Skoruba.AuditLogging.Events;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.Configuration;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.IdentityResource
 {
@@ -12,7 +13,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.IdentityResou
 
         public IdentityResourcePropertyAddedEvent(IdentityResourcePropertiesDto identityResourceProperty)
         {
-            IdentityResourceProperty = identityResourceProperty;
+            IdentityResourceProperty = AuditEventDataSanitizer.Sanitize(identityResourceProperty);
         }
     }
 }

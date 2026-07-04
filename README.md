@@ -625,9 +625,19 @@ Customizers implement:
 - `IIdentityUserMappingCustomizer<TUserDto, TUser>`
 - `IIdentityRoleMappingCustomizer<TRoleDto, TRole>`
 
+If your custom user DTO exposes additional audit-sensitive fields, also implement
+`IIdentityUserAuditSanitizer<TUserDto>` on the user mapping customizer. The built-in
+audit sanitizer always redacts `PasswordHash`, `SecurityStamp`, and
+`ConcurrencyStamp` by property name.
+
 ### 3. Full mapper override
 
 If you need full control, replace the default `IIdentityDataMapper<...>` registration in DI with your own implementation after calling `AddAdminAspNetIdentityServices`.
+Custom mapper implementations do not need to implement audit sanitization for
+backward compatibility, but they can implement
+`IIdentityAuditDataMapper<TUserDto, TUsersDto>` when they need custom audit
+redaction. Without it, audit logging falls back to the built-in redaction for
+`PasswordHash`, `SecurityStamp`, and `ConcurrencyStamp`.
 
 ---
 

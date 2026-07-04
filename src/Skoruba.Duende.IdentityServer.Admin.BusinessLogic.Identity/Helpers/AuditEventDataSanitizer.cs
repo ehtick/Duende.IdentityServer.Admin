@@ -2,10 +2,12 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text.Json;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Dtos.Grant;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Dtos.Identity;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Helpers
 {
@@ -31,23 +33,41 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Helpers
                 return default;
             }
 
-            foreach (var property in sanitizedUser.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public))
+            SanitizeSensitiveUserProperties(sanitizedUser);
+            return sanitizedUser;
+        }
+
+        public static TUsersDto SanitizeUsers<TUsersDto, TUserDto, TKey>(TUsersDto users)
+            where TUsersDto : UsersDto<TUserDto, TKey>
+            where TUserDto : UserDto<TKey>
+            where TKey : IEquatable<TKey>
+        {
+            return SanitizeUsers<TUsersDto>(users);
+        }
+
+        public static TUsersDto SanitizeUsers<TUsersDto>(TUsersDto users)
+        {
+            var sanitizedUsers = Clone(users);
+            if (sanitizedUsers == null)
             {
-                if (!property.CanRead || !property.CanWrite || !SensitiveUserPropertyNames.Contains(property.Name))
-                {
-                    continue;
-                }
-
-                var propertyType = property.PropertyType;
-                if (propertyType.IsValueType && Nullable.GetUnderlyingType(propertyType) == null)
-                {
-                    continue;
-                }
-
-                property.SetValue(sanitizedUser, null);
+                return sanitizedUsers;
             }
 
-            return sanitizedUser;
+            var usersProperty = sanitizedUsers.GetType().GetProperty("Users", BindingFlags.Instance | BindingFlags.Public);
+            if (usersProperty?.GetValue(sanitizedUsers) is not IEnumerable userItems)
+            {
+                return sanitizedUsers;
+            }
+
+            foreach (var user in userItems)
+            {
+                if (user != null)
+                {
+                    SanitizeSensitiveUserProperties(user);
+                }
+            }
+
+            return sanitizedUsers;
         }
 
         public static PersistedGrantDto Sanitize(PersistedGrantDto persistedGrant)
@@ -81,6 +101,25 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Helpers
             }
 
             return sanitizedGrants;
+        }
+
+        private static void SanitizeSensitiveUserProperties<TUserDto>(TUserDto user)
+        {
+            foreach (var property in user.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public))
+            {
+                if (!property.CanRead || !property.CanWrite || !SensitiveUserPropertyNames.Contains(property.Name))
+                {
+                    continue;
+                }
+
+                var propertyType = property.PropertyType;
+                if (propertyType.IsValueType && Nullable.GetUnderlyingType(propertyType) == null)
+                {
+                    continue;
+                }
+
+                property.SetValue(user, null);
+            }
         }
 
         private static T Clone<T>(T source)

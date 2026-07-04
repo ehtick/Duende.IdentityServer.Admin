@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 using Skoruba.AuditLogging.Events;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Helpers;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Events.Identity
 {
@@ -11,7 +12,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Events.Iden
 
         public ClaimUsersRequestedEvent(TUsersDto users)
         {
-            Users = users;
+            Users = AuditEventDataSanitizer.SanitizeUsers(users);
         }
     }
 }

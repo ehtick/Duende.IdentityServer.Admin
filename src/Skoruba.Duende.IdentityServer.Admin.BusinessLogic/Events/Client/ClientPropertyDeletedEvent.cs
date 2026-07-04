@@ -3,6 +3,7 @@
 
 using Skoruba.AuditLogging.Events;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.Configuration;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.Client
 {
@@ -12,7 +13,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.Client
 
         public ClientPropertyDeletedEvent(ClientPropertiesDto clientProperty)
         {
-            ClientProperty = clientProperty;
+            ClientProperty = AuditEventDataSanitizer.Sanitize(clientProperty);
         }
     }
 }
