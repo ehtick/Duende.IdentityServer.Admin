@@ -2,7 +2,7 @@
 
 # Skoruba.Duende.IdentityServer.Admin v3.0.0 🚀
 
-Modern admin UI for **Duende IdentityServer** and **ASP.NET Core Identity**.
+Modern administration UI for **Duende IdentityServer** and **ASP.NET Core Identity**.
 
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![React](https://img.shields.io/badge/React-18-61DAFB)
@@ -11,12 +11,11 @@ Modern admin UI for **Duende IdentityServer** and **ASP.NET Core Identity**.
 
 ---
 
-## Versions
+## Release 3.0.0 🎉 ⭐️
 
-- 🎉 **Latest stable version: v3.0.0**
-  - Stable major release with the new React + TypeScript Admin UI.
-  - Built with React, TypeScript, Tailwind CSS, shadcn/ui, and a .NET 10 REST API backend.
-  - Includes monitoring, configuration rules, client wizard flows, passkey support, and hardened audit logging.
+Version **3.0.0** is the stable v3 release of Skoruba Duende IdentityServer Admin. It introduces a new React + TypeScript Admin UI, .NET 10 support, Duende IdentityServer 7.4.7, passkey authentication, Mapperly-based mapping, expanded test coverage, and hardened audit logging.
+
+The v3 UI is built with React, TypeScript, Tailwind CSS, shadcn/ui, and a .NET REST API backend. It adds monitoring dashboards, configuration rules, configuration issue tracking, improved client and resource management, and a guided client creation wizard.
 
 ---
 
