@@ -1,36 +1,98 @@
-![Logo](docs/Images/logo.svg)
+<div align="center">
 
-# Skoruba.Duende.IdentityServer.Admin 🚀
+<img src="docs/Images/logo.svg" alt="Skoruba Duende IdentityServer Admin" width="150" />
 
-Modern administration UI for **Duende IdentityServer** and **ASP.NET Core Identity**.
+# Skoruba Duende IdentityServer Admin
 
-![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
-![React](https://img.shields.io/badge/React-18-61DAFB)
-![License](https://img.shields.io/badge/license-Apache%202.0-blue)
-[![Discord](https://img.shields.io/badge/Discord-Skoruba-%235865F2)](https://discord.gg/qTqQCSKWkX)
+### Modern administration UI for Duende IdentityServer and ASP.NET Core Identity
+
+Manage IdentityServer clients and resources, ASP.NET Core Identity users and roles,
+configuration health, auditing, and security from one modern interface.
+
+<br />
+
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge)](LICENSE)
+[![Discord](https://img.shields.io/badge/Discord-Skoruba-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/qTqQCSKWkX)
+
+<br />
+
+[**Installation**](#-installation-via-dotnet-new-template) ·
+[**Local Development**](#-quick-start--local-development) ·
+[**Docker**](#-running-via-docker-optional) ·
+[**Roadmap**](#-roadmap--changelog) ·
+[**Discord**](https://discord.gg/qTqQCSKWkX)
+
+</div>
+
+<br />
+
+<p align="center">
+  <img
+    src="docs/Images/light.png"
+    alt="Skoruba Duende IdentityServer Admin dashboard"
+    width="100%"
+  />
+</p>
+
+> [!IMPORTANT]
+>
+> ## Version 3.0.0 is here 🚀
+>
+> **Version 3.0.0** is the stable release of **Skoruba Duende IdentityServer Admin**.
+> It delivers a completely redesigned administration experience built with
+> **React, TypeScript, Tailwind CSS, shadcn/ui, and .NET 10**.
+>
+> See the [roadmap and changelog](#-roadmap--changelog) for release history and upcoming features.
 
 ---
 
-## Release 3.0.0 ⭐️
+## Highlights
 
-**Version 3.0.0** is the stable release of **Skoruba Duende IdentityServer Admin**.
+|     | Area                  | Highlights                                                                  |
+| --- | --------------------- | --------------------------------------------------------------------------- |
+| 🧭  | **New Admin UI**      | React, TypeScript, Tailwind CSS, and shadcn/ui                              |
+| ⚙️  | **Modern backend**    | .NET 10 and Duende IdentityServer 7.4.7                                     |
+| 📊  | **Monitoring**        | Dashboards, configuration rules, and issue tracking                         |
+| 🧙  | **Client management** | Improved workflows and guided client creation wizard                        |
+| 🔐  | **Authentication**    | Passkey support in STS Identity                                             |
+| 🧩  | **Mapping**           | Mapperly-based mapping pipeline and customization points                    |
+| 🛡️  | **Security**          | Hardened audit logging and stronger validation                              |
+| 🧪  | **Quality**           | Expanded Playwright UI, Admin API, STS, repository, and audit test coverage |
 
-### Highlights
+---
 
-- **New Admin UI** - React, TypeScript, Tailwind CSS, and shadcn/ui
-- **Modern backend** - .NET 10 and Duende IdentityServer 7.4.7
-- **Monitoring** - dashboards, configuration rules, and issue tracking
-- **Client management** - improved workflows and guided client creation wizard
-- **Authentication** - passkey support in STS Identity
-- **Mapping** - Mapperly-based mapping pipeline and customization points
-- **Security** - hardened audit logging and stronger validation
-- **Quality** - expanded Playwright UI, Admin API, STS, repository, and audit test coverage
+## Contents
+
+- [Administration UI Preview](#administration-ui-preview)
+- [Prerequisites](#-prerequisites)
+- [Installation via `dotnet new` Template](#-installation-via-dotnet-new-template)
+- [Quick Start – Local Development](#-quick-start--local-development)
+- [Running via Docker](#-running-via-docker-optional)
+- [EF Core & Data Access](#️-ef-core--data-access)
+- [Authentication & Authorization](#-authentication--authorization)
+- [Azure Key Vault Integration](#-azure-key-vault-integration)
+- [Logging](#-logging)
+- [Audit Logging](#-audit-logging)
+- [External Authentication Providers](#-external-authentication-providers)
+- [Email Service](#-email-service)
+- [Health Checks](#-health-checks)
+- [Localization](#-localization)
+- [API & Swagger](#-api--swagger)
+- [STS Configuration](#️-sts-configuration)
+- [Identity Mapping Customization](#-identity-mapping-customization)
+- [Solution Overview](#-solution-overview)
+- [Roadmap & Changelog](#-roadmap--changelog)
+- [License](#-license)
+- [Acknowledgements](#-acknowledgements)
+- [Contact & Support](#-contact--support)
 
 ---
 
 ## Administration UI Preview
 
-The UI is built with **Tailwind CSS** and **shadcn/ui** components.
+Explore the redesigned administration experience, built with **Tailwind CSS** and **shadcn/ui** components.
 
 ### 🧭 Dashboard (Light)
 
@@ -255,8 +317,6 @@ docker-compose up -d
 Docker images are available on [Docker Hub](https://hub.docker.com/u/skoruba).
 
 To publish images, check `build/publish-docker-images.ps1` and update the profile name.
-
----
 
 ---
 
