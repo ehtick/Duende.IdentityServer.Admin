@@ -13,7 +13,7 @@ Modern administration UI for **Duende IdentityServer** and **ASP.NET Core Identi
 
 ## Release 3.0.0 ⭐️
 
-**Version 3.0.0** is the stable v3 release of Skoruba Duende IdentityServer Admin.
+**Version 3.0.0** is the stable release of **Skoruba Duende IdentityServer Admin**.
 
 ### Highlights
 
