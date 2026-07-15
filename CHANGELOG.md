@@ -1,5 +1,43 @@
 # Changelog
 
+## [3.0.0] - 2026-07-15
+
+### Added
+
+- New React + TypeScript Admin UI with a modern SPA architecture, client creation wizard, monitoring dashboard, configuration rules, dark mode support, and improved client/resource management UX
+- Passkey (WebAuthn) authentication support in STS Identity, including registration, rename, removal, localization, configuration, and SQL Server/PostgreSQL migrations
+- New Mapperly-based identity data mapping pipeline with customization extension points
+- Expanded test coverage across Playwright UI flows, Admin API integration tests, STS integration tests, repository validation, and audit event security scenarios
+
+### Changed
+
+- Updated the solution to .NET 10 and Duende IdentityServer 7.4.7
+- Replaced AutoMapper with Mapperly across Admin BusinessLogic, Identity BusinessLogic, and Admin UI API mappers
+- Migrated Admin UI Client from `react-query` v3 to `@tanstack/react-query` v5
+- Migrated STS UI styling from Bootstrap/Gulp to Tailwind-based tooling
+- Improved build, versioning, package publishing, and release automation scripts
+- Updated solution/template/frontend package version references to `3.0.0`
+
+### Fixed
+
+- Hardened audit event payload sanitization to avoid persisting sensitive values such as client secrets, API secrets, client property values, pairwise subject salts, identity provider property values, persisted grant data/session identifiers, and identity user security fields
+- Fixed Admin UI behavior when API sessions expire or return unauthorized/forbidden responses
+- Fixed Admin UI data-grid delete actions and unsaved-changes confirmation flows that could leave the page blocked
+- Fixed tabbed client form validation visibility and optional numeric field handling
+- Prevented invalid configuration where `ApiScope` and `IdentityResource` share the same name
+- Fixed client claims update tracking issues and improved mapper null handling/runtime diagnostics
+- Resolved npm audit issues in Admin UI Client and STS Identity dependencies
+
+### Breaking Changes
+
+- New `AdminConfigurationDbContext` for monitoring/configuration rules requires new EF migrations
+- Passkey support adds a new Identity persistence schema (`AddUserPasskeys`) for SQL Server/PostgreSQL
+- Solution structure and NuGet package layout were reorganized with new Admin, Admin.Storage, and UI SPA projects
+- MySQL support was removed because the Pomelo.MySql package is not available for .NET 10
+- AutoMapper dependency was removed; custom mapping extensions must use the new Mapperly customization interfaces
+
+---
+
 ## [3.0.0-rc4]
 
 ### Fixed
