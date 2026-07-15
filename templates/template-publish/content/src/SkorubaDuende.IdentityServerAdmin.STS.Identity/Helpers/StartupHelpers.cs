@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net;
+using System.Threading.Tasks;
 using NetIPNetwork = System.Net.IPNetwork;
 using Duende.IdentityServer;
 using Duende.IdentityServer.Configuration;
@@ -98,6 +99,63 @@ namespace SkorubaDuende.IdentityServerAdmin.STS.Identity.Helpers
                 });
 
             return mvcBuilder;
+        }
+
+        public static IServiceCollection ConfigurePasskeyOptions(this IServiceCollection services, IConfiguration configuration, bool isDevelopment)
+        {
+            var passkeyConfig = configuration
+                .GetSection(Configuration.PasskeyConfiguration.SectionName)
+                .Get<Configuration.PasskeyConfiguration>() ?? new Configuration.PasskeyConfiguration();
+
+            services.Configure<IdentityPasskeyOptions>(options =>
+            {
+                if (!string.IsNullOrWhiteSpace(passkeyConfig.ServerDomain))
+                {
+                    options.ServerDomain = passkeyConfig.ServerDomain;
+                }
+
+                var allowedOrigins = passkeyConfig.AllowedOrigins?
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim().TrimEnd('/'))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                if (allowedOrigins?.Count > 0)
+                {
+                    options.ValidateOrigin = context =>
+                    {
+                        if (string.IsNullOrWhiteSpace(context.Origin))
+                            return ValueTask.FromResult(false);
+
+                        // Reject passkey operations from cross-origin iframes.
+                        if (context.CrossOrigin)
+                            return ValueTask.FromResult(false);
+
+                        if (!Uri.TryCreate(context.Origin, UriKind.Absolute, out var originUri))
+                            return ValueTask.FromResult(false);
+
+                        var normalizedOrigin = $"{originUri.Scheme}://{originUri.Authority}";
+                        return ValueTask.FromResult(allowedOrigins.Contains(normalizedOrigin));
+                    };
+                }
+                else if (isDevelopment)
+                {
+                    options.ValidateOrigin = context =>
+                    {
+                        // Reject passkey operations from cross-origin iframes.
+                        if (context.CrossOrigin)
+                            return ValueTask.FromResult(false);
+
+                        if (!Uri.TryCreate(context.Origin, UriKind.Absolute, out var originUri))
+                            return ValueTask.FromResult(false);
+
+                        return ValueTask.FromResult(
+                            (originUri.Scheme == Uri.UriSchemeHttp || originUri.Scheme == Uri.UriSchemeHttps) &&
+                            (originUri.Host == "localhost" || originUri.Host == "127.0.0.1"));
+                    };
+                }
+            });
+
+            return services;
         }
 
         /// <summary>
