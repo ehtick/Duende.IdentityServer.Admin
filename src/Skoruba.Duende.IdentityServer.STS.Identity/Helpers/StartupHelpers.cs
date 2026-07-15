@@ -141,11 +141,16 @@ namespace Skoruba.Duende.IdentityServer.STS.Identity.Helpers
                 {
                     options.ValidateOrigin = context =>
                     {
+                        // Reject passkey operations from cross-origin iframes.
+                        if (context.CrossOrigin)
+                            return ValueTask.FromResult(false);
+
                         if (!Uri.TryCreate(context.Origin, UriKind.Absolute, out var originUri))
                             return ValueTask.FromResult(false);
 
                         return ValueTask.FromResult(
-                            originUri.Host == "localhost" || originUri.Host == "127.0.0.1");
+                            (originUri.Scheme == Uri.UriSchemeHttp || originUri.Scheme == Uri.UriSchemeHttps) &&
+                            (originUri.Host == "localhost" || originUri.Host == "127.0.0.1"));
                     };
                 }
             });
