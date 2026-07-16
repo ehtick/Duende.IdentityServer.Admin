@@ -2,12 +2,15 @@
 
 @if (!String.IsNullOrEmpty(Model))
 {
-    var statusMessageClass = Model.StartsWith("Error") ? "alert-destructive" : "alert-default";
-    var iconName = Model.StartsWith("Error") ? "alert-circle" : "check";
+    const string errorPrefix = "Error: ";
+    var isError = Model.StartsWith(errorPrefix, StringComparison.OrdinalIgnoreCase);
+    var statusMessageClass = isError ? "alert-destructive" : "alert-default";
+    var iconName = isError ? "alert-circle" : "check";
+    var displayText = isError ? Model[errorPrefix.Length..] : Model;
     <div class="@statusMessageClass mb-4">
         <lucideicon name="@iconName" class="h-4 w-4" />
         <div>
-            <div class="alert-description">@Model</div>
+            <div class="alert-description">@displayText</div>
         </div>
     </div>
 }

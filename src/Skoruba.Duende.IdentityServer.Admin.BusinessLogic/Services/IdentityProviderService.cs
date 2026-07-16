@@ -2,20 +2,14 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
-using Duende.IdentityServer.EntityFramework.Entities;
-using Microsoft.EntityFrameworkCore;
 using Skoruba.AuditLogging.Services;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.IdentityProvider;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.IdentityProvider;
-using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Mappers;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Resources;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Services.Interfaces;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Shared.ExceptionHandling;
-using Skoruba.Duende.IdentityServer.Admin.EntityFramework.Extensions.Common;
 using Skoruba.Duende.IdentityServer.Admin.EntityFramework.Repositories.Interfaces;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Services

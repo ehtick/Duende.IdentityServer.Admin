@@ -10,7 +10,9 @@ using Microsoft.AspNetCore.Identity;
 using Skoruba.AuditLogging.Services;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Dtos.Identity;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Events.Identity;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Helpers;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Mappers;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Mappers.Customization;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Resources;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Services.Interfaces;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Shared.Dtos.Common;
@@ -68,6 +70,20 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Services
             IdentityDataMapper = identityDataMapper;
         }
 
+        private TUserDto SanitizeAuditUser(TUserDto user)
+        {
+            return IdentityDataMapper is IIdentityAuditDataMapper<TUserDto, TUsersDto> auditDataMapper
+                ? auditDataMapper.SanitizeAuditUser(user)
+                : AuditEventDataSanitizer.SanitizeUser(user);
+        }
+
+        private TUsersDto SanitizeAuditUsers(TUsersDto users)
+        {
+            return IdentityDataMapper is IIdentityAuditDataMapper<TUserDto, TUsersDto> auditDataMapper
+                ? auditDataMapper.SanitizeAuditUsers(users)
+                : AuditEventDataSanitizer.SanitizeUsers<TUsersDto, TUserDto, TKey>(users);
+        }
+
         public virtual async Task<bool> ExistsUserAsync(string userId)
         {
             var exists = await IdentityRepository.ExistsUserAsync(userId);
@@ -89,7 +105,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Services
             var pagedList = await IdentityRepository.GetUsersAsync(search, page, pageSize);
             var usersDto = IdentityDataMapper.MapPagedUsersToDto(pagedList);
 
-            await AuditEventLogger.LogEventAsync(new UsersRequestedEvent<TUsersDto>(usersDto));
+            await AuditEventLogger.LogEventAsync(new UsersRequestedEvent<TUsersDto>(SanitizeAuditUsers(usersDto)));
 
             return usersDto;
         }
@@ -104,7 +120,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Services
             var pagedList = await IdentityRepository.GetRoleUsersAsync(roleId, search, page, pageSize);
             var usersDto = IdentityDataMapper.MapPagedUsersToDto(pagedList);
 
-            await AuditEventLogger.LogEventAsync(new RoleUsersRequestedEvent<TUsersDto>(usersDto));
+            await AuditEventLogger.LogEventAsync(new RoleUsersRequestedEvent<TUsersDto>(SanitizeAuditUsers(usersDto)));
 
             return usersDto;
         }
@@ -114,7 +130,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Services
             var pagedList = await IdentityRepository.GetClaimUsersAsync(claimType, claimValue, page, pageSize);
             var usersDto = IdentityDataMapper.MapPagedUsersToDto(pagedList);
 
-            await AuditEventLogger.LogEventAsync(new ClaimUsersRequestedEvent<TUsersDto>(usersDto));
+            await AuditEventLogger.LogEventAsync(new ClaimUsersRequestedEvent<TUsersDto>(SanitizeAuditUsers(usersDto)));
 
             return usersDto;
         }
@@ -201,7 +217,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Services
 
             var userDto = IdentityDataMapper.MapUserToDto(identity);
 
-            await AuditEventLogger.LogEventAsync(new UserRequestedEvent<TUserDto>(userDto));
+            await AuditEventLogger.LogEventAsync(new UserRequestedEvent<TUserDto>(SanitizeAuditUser(userDto)));
 
             return userDto;
         }
@@ -213,7 +229,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Services
 
             var handleIdentityError = HandleIdentityError(identityResult, IdentityServiceResources.UserCreateFailed().Description, IdentityServiceResources.IdentityErrorKey().Description, user);
 
-            await AuditEventLogger.LogEventAsync(new UserSavedEvent<TUserDto>(user));
+            await AuditEventLogger.LogEventAsync(new UserSavedEvent<TUserDto>(SanitizeAuditUser(user)));
 
             return (handleIdentityError, userId);
         }
@@ -234,7 +250,9 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Services
             var (identityResult, userId) = await IdentityRepository.UpdateUserAsync(userIdentity);
             var handleIdentityError = HandleIdentityError(identityResult, IdentityServiceResources.UserUpdateFailed().Description, IdentityServiceResources.IdentityErrorKey().Description, user);
 
-            await AuditEventLogger.LogEventAsync(new UserUpdatedEvent<TUserDto>(originalUser, user));
+            await AuditEventLogger.LogEventAsync(new UserUpdatedEvent<TUserDto>(
+                SanitizeAuditUser(originalUser),
+                SanitizeAuditUser(user)));
 
             return (handleIdentityError, userId);
         }
@@ -243,7 +261,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Services
         {
             var identityResult = await IdentityRepository.DeleteUserAsync(userId);
 
-            await AuditEventLogger.LogEventAsync(new UserDeletedEvent<TUserDto>(user));
+            await AuditEventLogger.LogEventAsync(new UserDeletedEvent<TUserDto>(SanitizeAuditUser(user)));
 
             return HandleIdentityError(identityResult, IdentityServiceResources.UserDeleteFailed().Description, IdentityServiceResources.IdentityErrorKey().Description, user);
         }

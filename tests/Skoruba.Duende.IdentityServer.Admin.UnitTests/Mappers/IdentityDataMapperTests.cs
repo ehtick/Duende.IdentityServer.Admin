@@ -8,6 +8,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Dtos.Identity;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Mappers;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Mappers.Customization;
 using Skoruba.Duende.IdentityServer.Admin.EntityFramework.Extensions.Common;
 using Xunit;
 
@@ -88,6 +89,106 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Mappers
             map.Should().NotThrow();
             destinationEntity.CustomTag.Should().Be(dtoDerivedTag);
             ((HiddenPropertyUserIdentityBase)destinationEntity).CustomTag.Should().BeNull();
+        }
+
+        [Fact]
+        public void SanitizeAuditUser_PreservesCustomPropertiesAndRedactsSensitiveFields()
+        {
+            var mapper = CreateMapper<SensitiveUserDto, SensitiveUserIdentity>(new[] { new SensitiveUserMappingCustomizer() });
+            var source = new SensitiveUserDto
+            {
+                Id = Faker.Random.Guid().ToString(),
+                UserName = Faker.Internet.UserName(),
+                Email = Faker.Internet.Email(),
+                PasswordHash = Faker.Random.AlphaNumeric(60),
+                SecurityStamp = Faker.Random.Guid().ToString(),
+                ConcurrencyStamp = Faker.Random.Guid().ToString(),
+                NormalizedUserName = Faker.Internet.UserName().ToUpperInvariant(),
+                NormalizedEmail = Faker.Internet.Email().ToUpperInvariant()
+            };
+
+            var sanitized = mapper.SanitizeAuditUser(source);
+
+            sanitized.Should().NotBeSameAs(source);
+            sanitized.Id.Should().Be(source.Id);
+            sanitized.UserName.Should().Be(source.UserName);
+            sanitized.Email.Should().Be(source.Email);
+            sanitized.NormalizedUserName.Should().Be(source.NormalizedUserName);
+            sanitized.NormalizedEmail.Should().Be(source.NormalizedEmail);
+            sanitized.PasswordHash.Should().BeNull();
+            sanitized.SecurityStamp.Should().BeNull();
+            sanitized.ConcurrencyStamp.Should().BeNull();
+            source.PasswordHash.Should().NotBeNull();
+            source.SecurityStamp.Should().NotBeNull();
+            source.ConcurrencyStamp.Should().NotBeNull();
+        }
+
+        [Fact]
+        public void SanitizeAuditUser_RedactsKnownSensitiveFieldsWithoutCustomAuditSanitizer()
+        {
+            var mapper = CreateMapper<SensitiveUserDto, SensitiveUserIdentity>();
+            var source = new SensitiveUserDto
+            {
+                Id = Faker.Random.Guid().ToString(),
+                UserName = Faker.Internet.UserName(),
+                Email = Faker.Internet.Email(),
+                PasswordHash = Faker.Random.AlphaNumeric(60),
+                SecurityStamp = Faker.Random.Guid().ToString(),
+                ConcurrencyStamp = Faker.Random.Guid().ToString(),
+                NormalizedUserName = Faker.Internet.UserName().ToUpperInvariant(),
+                NormalizedEmail = Faker.Internet.Email().ToUpperInvariant()
+            };
+
+            var sanitized = mapper.SanitizeAuditUser(source);
+
+            sanitized.Should().NotBeSameAs(source);
+            sanitized.PasswordHash.Should().BeNull();
+            sanitized.SecurityStamp.Should().BeNull();
+            sanitized.ConcurrencyStamp.Should().BeNull();
+            sanitized.NormalizedUserName.Should().Be(source.NormalizedUserName);
+            sanitized.NormalizedEmail.Should().Be(source.NormalizedEmail);
+            source.PasswordHash.Should().NotBeNull();
+            source.SecurityStamp.Should().NotBeNull();
+            source.ConcurrencyStamp.Should().NotBeNull();
+        }
+
+        [Fact]
+        public void SanitizeAuditUsers_PreservesMetadataAndDoesNotMutateSourceItems()
+        {
+            var mapper = CreateMapper<SensitiveUserDto, SensitiveUserIdentity>(new[] { new SensitiveUserMappingCustomizer() });
+            var sourceUser = new SensitiveUserDto
+            {
+                Id = Faker.Random.Guid().ToString(),
+                UserName = Faker.Internet.UserName(),
+                Email = Faker.Internet.Email(),
+                PasswordHash = Faker.Random.AlphaNumeric(60),
+                SecurityStamp = Faker.Random.Guid().ToString(),
+                ConcurrencyStamp = Faker.Random.Guid().ToString(),
+                NormalizedUserName = Faker.Internet.UserName().ToUpperInvariant(),
+                NormalizedEmail = Faker.Internet.Email().ToUpperInvariant()
+            };
+            var source = new UsersDto<SensitiveUserDto, string>
+            {
+                TotalCount = 1,
+                PageSize = 10,
+                Users = new List<SensitiveUserDto> { sourceUser }
+            };
+
+            var sanitized = mapper.SanitizeAuditUsers(source);
+
+            sanitized.Should().NotBeSameAs(source);
+            sanitized.TotalCount.Should().Be(source.TotalCount);
+            sanitized.PageSize.Should().Be(source.PageSize);
+            sanitized.Users.Should().ContainSingle();
+            sanitized.Users[0].Should().NotBeSameAs(sourceUser);
+            sanitized.Users[0].Id.Should().Be(sourceUser.Id);
+            sanitized.Users[0].NormalizedUserName.Should().Be(sourceUser.NormalizedUserName);
+            sanitized.Users[0].PasswordHash.Should().BeNull();
+            sanitized.Users[0].SecurityStamp.Should().BeNull();
+            sanitized.Users[0].ConcurrencyStamp.Should().BeNull();
+            sourceUser.PasswordHash.Should().NotBeNull();
+            sourceUser.SecurityStamp.Should().NotBeNull();
+            sourceUser.ConcurrencyStamp.Should().NotBeNull();
         }
 
         #region MapUserToDto
@@ -500,7 +601,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Mappers
             UsersDto<TUserDto, string>, RolesDto<RoleDto<string>, string>, UserRolesDto<RoleDto<string>, string>,
             UserClaimsDto<UserClaimDto<string>, string>, UserProviderDto<string>, UserProvidersDto<UserProviderDto<string>, string>,
             RoleClaimsDto<RoleClaimDto<string>, string>, UserClaimDto<string>, RoleClaimDto<string>>
-            CreateMapper<TUserDto, TUser>()
+            CreateMapper<TUserDto, TUser>(IEnumerable<IIdentityUserMappingCustomizer<TUserDto, TUser>> userMappingCustomizers = null)
             where TUserDto : UserDto<string>
             where TUser : IdentityUser<string>
         {
@@ -508,7 +609,8 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Mappers
                 IdentityUserClaim<string>, IdentityUserLogin<string>, IdentityRoleClaim<string>,
                 UsersDto<TUserDto, string>, RolesDto<RoleDto<string>, string>, UserRolesDto<RoleDto<string>, string>,
                 UserClaimsDto<UserClaimDto<string>, string>, UserProviderDto<string>, UserProvidersDto<UserProviderDto<string>, string>,
-                RoleClaimsDto<RoleClaimDto<string>, string>, UserClaimDto<string>, RoleClaimDto<string>>();
+                RoleClaimsDto<RoleClaimDto<string>, string>, UserClaimDto<string>, RoleClaimDto<string>>(
+                userMappingCustomizers: userMappingCustomizers);
         }
 
         public sealed class SensitiveUserDto : UserDto<string>
@@ -522,6 +624,31 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Mappers
 
         public sealed class SensitiveUserIdentity : IdentityUser
         {
+        }
+
+        public sealed class SensitiveUserMappingCustomizer : IIdentityUserMappingCustomizer<SensitiveUserDto, SensitiveUserIdentity>,
+            IIdentityUserAuditSanitizer<SensitiveUserDto>
+        {
+            public void MapDtoToEntity(SensitiveUserDto source, SensitiveUserIdentity destination)
+            {
+                destination.PasswordHash = source.PasswordHash;
+                destination.SecurityStamp = source.SecurityStamp;
+                destination.ConcurrencyStamp = source.ConcurrencyStamp;
+            }
+
+            public void MapEntityToDto(SensitiveUserIdentity source, SensitiveUserDto destination)
+            {
+                destination.PasswordHash = source.PasswordHash;
+                destination.SecurityStamp = source.SecurityStamp;
+                destination.ConcurrencyStamp = source.ConcurrencyStamp;
+            }
+
+            public void SanitizeAuditUser(SensitiveUserDto user)
+            {
+                user.PasswordHash = null;
+                user.SecurityStamp = null;
+                user.ConcurrencyStamp = null;
+            }
         }
 
         public class HiddenPropertyUserDtoBase : UserDto<string>

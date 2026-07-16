@@ -4,7 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
+using Bogus;
 using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -13,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Skoruba.AuditLogging.Services;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Dtos.Identity;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Events.Identity;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Mappers;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Mappers.Customization;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Resources;
@@ -30,6 +33,8 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Services
 {
     public class IdentityServiceTests
     {
+        private static readonly Faker Faker = new();
+
         public IdentityServiceTests()
         {
             var databaseName = Guid.NewGuid().ToString();
@@ -148,6 +153,55 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Services
             return identityService;
         }
 
+        private IIdentityService<UserDto<string>, RoleDto<string>, UserIdentity,
+            UserIdentityRole, string,
+            UserIdentityUserClaim, UserIdentityUserRole, UserIdentityUserLogin, UserIdentityRoleClaim,
+            UserIdentityUserToken,
+            UsersDto<UserDto<string>, string>, RolesDto<RoleDto<string>, string>,
+            UserRolesDto<RoleDto<string>, string>,
+            UserClaimsDto<UserClaimDto<string>, string>, UserProviderDto<string>, UserProvidersDto<UserProviderDto<string>, string>, UserChangePasswordDto<string>,
+            RoleClaimsDto<RoleClaimDto<string>, string>, UserClaimDto<string>, RoleClaimDto<string>> GetIdentityService(AdminIdentityDbContext context, IAuditEventLogger auditLogger)
+        {
+            var testUserManager = GetTestUserManager(context);
+            var testRoleManager = GetTestRoleManager(context);
+
+            var identityRepository = GetIdentityRepository(context, testUserManager, testRoleManager);
+            var localizerIdentityResource = new IdentityServiceResources();
+            var identityDataMapper = GetIdentityDataMapper();
+
+            return GetIdentityService(identityRepository, localizerIdentityResource, auditLogger, identityDataMapper);
+        }
+
+        private IIdentityService<SensitiveUserDto, RoleDto<string>, UserIdentity,
+            UserIdentityRole, string,
+            UserIdentityUserClaim, UserIdentityUserRole, UserIdentityUserLogin, UserIdentityRoleClaim,
+            UserIdentityUserToken,
+            UsersDto<SensitiveUserDto, string>, RolesDto<RoleDto<string>, string>,
+            UserRolesDto<RoleDto<string>, string>,
+            UserClaimsDto<UserClaimDto<string>, string>, UserProviderDto<string>, UserProvidersDto<UserProviderDto<string>, string>, UserChangePasswordDto<string>,
+            RoleClaimsDto<RoleClaimDto<string>, string>, UserClaimDto<string>, RoleClaimDto<string>> GetSensitiveIdentityService(
+            AdminIdentityDbContext context,
+            IAuditEventLogger auditLogger)
+        {
+            var testUserManager = GetTestUserManager(context);
+            var testRoleManager = GetTestRoleManager(context);
+            var identityRepository = GetIdentityRepository(context, testUserManager, testRoleManager);
+            var identityDataMapper = new IdentityDataMapper<SensitiveUserDto, RoleDto<string>, UserIdentity, UserIdentityRole, string,
+                UserIdentityUserClaim, UserIdentityUserLogin, UserIdentityRoleClaim, UsersDto<SensitiveUserDto, string>,
+                RolesDto<RoleDto<string>, string>, UserRolesDto<RoleDto<string>, string>,
+                UserClaimsDto<UserClaimDto<string>, string>, UserProviderDto<string>, UserProvidersDto<UserProviderDto<string>, string>,
+                RoleClaimsDto<RoleClaimDto<string>, string>, UserClaimDto<string>, RoleClaimDto<string>>(
+                userMappingCustomizers: new[] { new SensitiveUserMappingCustomizer() });
+
+            return new IdentityService<SensitiveUserDto, RoleDto<string>, UserIdentity,
+                UserIdentityRole, string, UserIdentityUserClaim, UserIdentityUserRole, UserIdentityUserLogin, UserIdentityRoleClaim,
+                UserIdentityUserToken, UsersDto<SensitiveUserDto, string>, RolesDto<RoleDto<string>, string>,
+                UserRolesDto<RoleDto<string>, string>, UserClaimsDto<UserClaimDto<string>, string>, UserProviderDto<string>,
+                UserProvidersDto<UserProviderDto<string>, string>, UserChangePasswordDto<string>,
+                RoleClaimsDto<RoleClaimDto<string>, string>, UserClaimDto<string>, RoleClaimDto<string>>(
+                identityRepository, new IdentityServiceResources(), auditLogger, identityDataMapper);
+        }
+
         private IIdentityRepository<CustomUserIdentity, CustomRoleIdentity, string,
             CustomUserClaim, CustomUserRole, CustomUserLogin, CustomRoleClaim,
             CustomUserToken> GetCustomIdentityRepository(CustomAdminIdentityDbContext dbContext,
@@ -258,6 +312,278 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Services
 
                 //Assert new user
                 newUserDto.Should().BeEquivalentTo(userDto);
+            }
+        }
+
+        [Fact]
+        public async Task GetUserAsync_AuditEvent_DoesNotContainPasswordHash()
+        {
+            using (var context = new AdminIdentityDbContext(_dbContextOptions))
+            {
+                var userId = Guid.NewGuid().ToString();
+                var seedUserDto = IdentityDtoMock<string>.GenerateRandomUser(userId);
+                var passwordHash = Faker.Random.AlphaNumeric(60);
+
+                await context.Users.AddAsync(new UserIdentity
+                {
+                    Id = seedUserDto.Id,
+                    UserName = seedUserDto.UserName,
+                    NormalizedUserName = seedUserDto.UserName.ToUpperInvariant(),
+                    Email = seedUserDto.Email,
+                    NormalizedEmail = seedUserDto.Email.ToUpperInvariant(),
+                    EmailConfirmed = seedUserDto.EmailConfirmed,
+                    PhoneNumber = seedUserDto.PhoneNumber,
+                    PhoneNumberConfirmed = seedUserDto.PhoneNumberConfirmed,
+                    LockoutEnabled = seedUserDto.LockoutEnabled,
+                    LockoutEnd = seedUserDto.LockoutEnd,
+                    TwoFactorEnabled = seedUserDto.TwoFactorEnabled,
+                    AccessFailedCount = seedUserDto.AccessFailedCount,
+                    PasswordHash = passwordHash
+                });
+                await context.SaveChangesAsync();
+
+                var auditLoggerMock = new Mock<IAuditEventLogger>();
+                auditLoggerMock
+                    .Setup(x => x.LogEventAsync(It.IsAny<UserRequestedEvent<UserDto<string>>>()))
+                    .Returns(Task.CompletedTask);
+
+                var identityService = GetIdentityService(context, auditLoggerMock.Object);
+
+                var loadedUserDto = await identityService.GetUserAsync(userId);
+
+                loadedUserDto.Should().NotBeNull();
+                auditLoggerMock.Verify(x => x.LogEventAsync(It.Is<UserRequestedEvent<UserDto<string>>>(e =>
+                    !JsonSerializer.Serialize(e).Contains("PasswordHash") &&
+                    !JsonSerializer.Serialize(e).Contains(passwordHash))), Times.Once);
+            }
+        }
+
+        [Fact]
+        public async Task GetUserAsync_AuditEvent_SanitizesSensitivePropertiesForCustomUserDto()
+        {
+            using (var context = new AdminIdentityDbContext(_dbContextOptions))
+            {
+                var userId = Guid.NewGuid().ToString();
+                var seedUserDto = IdentityDtoMock<string>.GenerateRandomUser(userId);
+                var passwordHash = Faker.Random.AlphaNumeric(60);
+                var securityStamp = Faker.Random.Guid().ToString();
+                var concurrencyStamp = Faker.Random.Guid().ToString();
+
+                await context.Users.AddAsync(new UserIdentity
+                {
+                    Id = seedUserDto.Id,
+                    UserName = seedUserDto.UserName,
+                    NormalizedUserName = seedUserDto.UserName.ToUpperInvariant(),
+                    Email = seedUserDto.Email,
+                    NormalizedEmail = seedUserDto.Email.ToUpperInvariant(),
+                    EmailConfirmed = seedUserDto.EmailConfirmed,
+                    PhoneNumber = seedUserDto.PhoneNumber,
+                    PhoneNumberConfirmed = seedUserDto.PhoneNumberConfirmed,
+                    LockoutEnabled = seedUserDto.LockoutEnabled,
+                    LockoutEnd = seedUserDto.LockoutEnd,
+                    TwoFactorEnabled = seedUserDto.TwoFactorEnabled,
+                    AccessFailedCount = seedUserDto.AccessFailedCount,
+                    PasswordHash = passwordHash,
+                    SecurityStamp = securityStamp,
+                    ConcurrencyStamp = concurrencyStamp
+                });
+                await context.SaveChangesAsync();
+
+                var auditLoggerMock = new Mock<IAuditEventLogger>();
+                auditLoggerMock
+                    .Setup(x => x.LogEventAsync(It.IsAny<UserRequestedEvent<SensitiveUserDto>>()))
+                    .Returns(Task.CompletedTask);
+
+                var identityService = GetSensitiveIdentityService(context, auditLoggerMock.Object);
+
+                var loadedUserDto = await identityService.GetUserAsync(userId);
+
+                loadedUserDto.PasswordHash.Should().Be(passwordHash);
+                loadedUserDto.SecurityStamp.Should().Be(securityStamp);
+                loadedUserDto.ConcurrencyStamp.Should().Be(concurrencyStamp);
+                auditLoggerMock.Verify(x => x.LogEventAsync(It.Is<UserRequestedEvent<SensitiveUserDto>>(e =>
+                    e.UserDto.PasswordHash == null &&
+                    e.UserDto.SecurityStamp == null &&
+                    e.UserDto.ConcurrencyStamp == null)), Times.Once);
+            }
+        }
+
+        [Fact]
+        public async Task GetUsersAsync_AuditEvent_SanitizesSensitivePropertiesForCustomUserDto()
+        {
+            using (var context = new AdminIdentityDbContext(_dbContextOptions))
+            {
+                var userId = Guid.NewGuid().ToString();
+                var seedUserDto = IdentityDtoMock<string>.GenerateRandomUser(userId);
+                var passwordHash = Faker.Random.AlphaNumeric(60);
+                var securityStamp = Faker.Random.Guid().ToString();
+                var concurrencyStamp = Faker.Random.Guid().ToString();
+
+                await context.Users.AddAsync(new UserIdentity
+                {
+                    Id = seedUserDto.Id,
+                    UserName = seedUserDto.UserName,
+                    NormalizedUserName = seedUserDto.UserName.ToUpperInvariant(),
+                    Email = seedUserDto.Email,
+                    NormalizedEmail = seedUserDto.Email.ToUpperInvariant(),
+                    EmailConfirmed = seedUserDto.EmailConfirmed,
+                    PhoneNumber = seedUserDto.PhoneNumber,
+                    PhoneNumberConfirmed = seedUserDto.PhoneNumberConfirmed,
+                    LockoutEnabled = seedUserDto.LockoutEnabled,
+                    LockoutEnd = seedUserDto.LockoutEnd,
+                    TwoFactorEnabled = seedUserDto.TwoFactorEnabled,
+                    AccessFailedCount = seedUserDto.AccessFailedCount,
+                    PasswordHash = passwordHash,
+                    SecurityStamp = securityStamp,
+                    ConcurrencyStamp = concurrencyStamp
+                });
+                await context.SaveChangesAsync();
+
+                var auditLoggerMock = new Mock<IAuditEventLogger>();
+                auditLoggerMock
+                    .Setup(x => x.LogEventAsync(It.IsAny<UsersRequestedEvent<UsersDto<SensitiveUserDto, string>>>()))
+                    .Returns(Task.CompletedTask);
+
+                var identityService = GetSensitiveIdentityService(context, auditLoggerMock.Object);
+
+                var loadedUsersDto = await identityService.GetUsersAsync(string.Empty);
+
+                loadedUsersDto.Users.Should().ContainSingle();
+                loadedUsersDto.Users[0].PasswordHash.Should().Be(passwordHash);
+                loadedUsersDto.Users[0].SecurityStamp.Should().Be(securityStamp);
+                loadedUsersDto.Users[0].ConcurrencyStamp.Should().Be(concurrencyStamp);
+                auditLoggerMock.Verify(x => x.LogEventAsync(It.Is<UsersRequestedEvent<UsersDto<SensitiveUserDto, string>>>(e =>
+                    e.Users.Users.Count == 1 &&
+                    e.Users.Users.All(u =>
+                        u.PasswordHash == null &&
+                        u.SecurityStamp == null &&
+                        u.ConcurrencyStamp == null))), Times.Once);
+            }
+        }
+
+        [Fact]
+        public async Task GetRoleUsersAsync_AuditEvent_SanitizesSensitivePropertiesForCustomUserDto()
+        {
+            using (var context = new AdminIdentityDbContext(_dbContextOptions))
+            {
+                var userId = Guid.NewGuid().ToString();
+                var roleId = Guid.NewGuid().ToString();
+                var seedUserDto = IdentityDtoMock<string>.GenerateRandomUser(userId);
+                var passwordHash = Faker.Random.AlphaNumeric(60);
+                var securityStamp = Faker.Random.Guid().ToString();
+                var concurrencyStamp = Faker.Random.Guid().ToString();
+
+                await context.Users.AddAsync(new UserIdentity
+                {
+                    Id = seedUserDto.Id,
+                    UserName = seedUserDto.UserName,
+                    NormalizedUserName = seedUserDto.UserName.ToUpperInvariant(),
+                    Email = seedUserDto.Email,
+                    NormalizedEmail = seedUserDto.Email.ToUpperInvariant(),
+                    EmailConfirmed = seedUserDto.EmailConfirmed,
+                    PhoneNumber = seedUserDto.PhoneNumber,
+                    PhoneNumberConfirmed = seedUserDto.PhoneNumberConfirmed,
+                    LockoutEnabled = seedUserDto.LockoutEnabled,
+                    LockoutEnd = seedUserDto.LockoutEnd,
+                    TwoFactorEnabled = seedUserDto.TwoFactorEnabled,
+                    AccessFailedCount = seedUserDto.AccessFailedCount,
+                    PasswordHash = passwordHash,
+                    SecurityStamp = securityStamp,
+                    ConcurrencyStamp = concurrencyStamp
+                });
+                await context.Roles.AddAsync(new UserIdentityRole
+                {
+                    Id = roleId,
+                    Name = "test-role",
+                    NormalizedName = "TEST-ROLE"
+                });
+                await context.UserRoles.AddAsync(new UserIdentityUserRole
+                {
+                    UserId = userId,
+                    RoleId = roleId
+                });
+                await context.SaveChangesAsync();
+
+                var auditLoggerMock = new Mock<IAuditEventLogger>();
+                auditLoggerMock
+                    .Setup(x => x.LogEventAsync(It.IsAny<RoleUsersRequestedEvent<UsersDto<SensitiveUserDto, string>>>()))
+                    .Returns(Task.CompletedTask);
+
+                var identityService = GetSensitiveIdentityService(context, auditLoggerMock.Object);
+
+                var loadedUsersDto = await identityService.GetRoleUsersAsync(roleId, string.Empty);
+
+                loadedUsersDto.Users.Should().ContainSingle();
+                loadedUsersDto.Users[0].PasswordHash.Should().Be(passwordHash);
+                loadedUsersDto.Users[0].SecurityStamp.Should().Be(securityStamp);
+                loadedUsersDto.Users[0].ConcurrencyStamp.Should().Be(concurrencyStamp);
+                auditLoggerMock.Verify(x => x.LogEventAsync(It.Is<RoleUsersRequestedEvent<UsersDto<SensitiveUserDto, string>>>(e =>
+                    e.Users.Users.Count == 1 &&
+                    e.Users.Users.All(u =>
+                        u.PasswordHash == null &&
+                        u.SecurityStamp == null &&
+                        u.ConcurrencyStamp == null))), Times.Once);
+            }
+        }
+
+        [Fact]
+        public async Task GetClaimUsersAsync_AuditEvent_SanitizesSensitivePropertiesForCustomUserDto()
+        {
+            using (var context = new AdminIdentityDbContext(_dbContextOptions))
+            {
+                var userId = Guid.NewGuid().ToString();
+                var seedUserDto = IdentityDtoMock<string>.GenerateRandomUser(userId);
+                var passwordHash = Faker.Random.AlphaNumeric(60);
+                var securityStamp = Faker.Random.Guid().ToString();
+                var concurrencyStamp = Faker.Random.Guid().ToString();
+                var claimType = "department";
+                var claimValue = "engineering";
+
+                await context.Users.AddAsync(new UserIdentity
+                {
+                    Id = seedUserDto.Id,
+                    UserName = seedUserDto.UserName,
+                    NormalizedUserName = seedUserDto.UserName.ToUpperInvariant(),
+                    Email = seedUserDto.Email,
+                    NormalizedEmail = seedUserDto.Email.ToUpperInvariant(),
+                    EmailConfirmed = seedUserDto.EmailConfirmed,
+                    PhoneNumber = seedUserDto.PhoneNumber,
+                    PhoneNumberConfirmed = seedUserDto.PhoneNumberConfirmed,
+                    LockoutEnabled = seedUserDto.LockoutEnabled,
+                    LockoutEnd = seedUserDto.LockoutEnd,
+                    TwoFactorEnabled = seedUserDto.TwoFactorEnabled,
+                    AccessFailedCount = seedUserDto.AccessFailedCount,
+                    PasswordHash = passwordHash,
+                    SecurityStamp = securityStamp,
+                    ConcurrencyStamp = concurrencyStamp
+                });
+                await context.UserClaims.AddAsync(new UserIdentityUserClaim
+                {
+                    UserId = userId,
+                    ClaimType = claimType,
+                    ClaimValue = claimValue
+                });
+                await context.SaveChangesAsync();
+
+                var auditLoggerMock = new Mock<IAuditEventLogger>();
+                auditLoggerMock
+                    .Setup(x => x.LogEventAsync(It.IsAny<ClaimUsersRequestedEvent<UsersDto<SensitiveUserDto, string>>>()))
+                    .Returns(Task.CompletedTask);
+
+                var identityService = GetSensitiveIdentityService(context, auditLoggerMock.Object);
+
+                var loadedUsersDto = await identityService.GetClaimUsersAsync(claimType, claimValue);
+
+                loadedUsersDto.Users.Should().ContainSingle();
+                loadedUsersDto.Users[0].PasswordHash.Should().Be(passwordHash);
+                loadedUsersDto.Users[0].SecurityStamp.Should().Be(securityStamp);
+                loadedUsersDto.Users[0].ConcurrencyStamp.Should().Be(concurrencyStamp);
+                auditLoggerMock.Verify(x => x.LogEventAsync(It.Is<ClaimUsersRequestedEvent<UsersDto<SensitiveUserDto, string>>>(e =>
+                    e.Users.Users.Count == 1 &&
+                    e.Users.Users.All(u =>
+                        u.PasswordHash == null &&
+                        u.SecurityStamp == null &&
+                        u.ConcurrencyStamp == null))), Times.Once);
             }
         }
 
@@ -894,6 +1220,13 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Services
             public string NickName { get; set; }
         }
 
+        public sealed class SensitiveUserDto : UserDto<string>
+        {
+            public string PasswordHash { get; set; }
+            public string SecurityStamp { get; set; }
+            public string ConcurrencyStamp { get; set; }
+        }
+
         public sealed class CustomRoleDto : RoleDto<string>
         {
             public string Description { get; set; }
@@ -922,6 +1255,31 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Services
             public void MapEntityToDto(CustomUserIdentity source, CustomUserDto destination)
             {
                 destination.NickName = source.PreferredName;
+            }
+        }
+
+        public sealed class SensitiveUserMappingCustomizer : IIdentityUserMappingCustomizer<SensitiveUserDto, UserIdentity>,
+            IIdentityUserAuditSanitizer<SensitiveUserDto>
+        {
+            public void MapDtoToEntity(SensitiveUserDto source, UserIdentity destination)
+            {
+                destination.PasswordHash = source.PasswordHash;
+                destination.SecurityStamp = source.SecurityStamp;
+                destination.ConcurrencyStamp = source.ConcurrencyStamp;
+            }
+
+            public void MapEntityToDto(UserIdentity source, SensitiveUserDto destination)
+            {
+                destination.PasswordHash = source.PasswordHash;
+                destination.SecurityStamp = source.SecurityStamp;
+                destination.ConcurrencyStamp = source.ConcurrencyStamp;
+            }
+
+            public void SanitizeAuditUser(SensitiveUserDto user)
+            {
+                user.PasswordHash = null;
+                user.SecurityStamp = null;
+                user.ConcurrencyStamp = null;
             }
         }
 

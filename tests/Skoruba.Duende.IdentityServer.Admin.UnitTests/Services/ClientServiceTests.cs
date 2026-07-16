@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Skoruba.AuditLogging.Services;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.Client;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.Configuration;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Mappers;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Resources;
@@ -67,6 +68,16 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Services
             var clientService = GetClientService(clientRepository, localizer, auditLogger);
 
             return clientService;
+        }
+
+        private IClientService GetClientService(IdentityServerConfigurationDbContext context, IAuditEventLogger auditEventLogger)
+        {
+            var clientRepository = GetClientRepository(context);
+
+            var localizerMock = new Mock<IClientServiceResources>();
+            var localizer = localizerMock.Object;
+
+            return GetClientService(clientRepository, localizer, auditEventLogger);
         }
 
         [Fact]
@@ -268,6 +279,40 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Services
                 var updatedClient = await clientService.GetClientAsync(clientEntity.Id);
                 updatedClient.Claims.Should().HaveCount(1);
                 updatedClient.Claims[0].Type.Should().Be("sub");
+            }
+        }
+
+        [Fact]
+        public async Task GetClientAsync_AuditEvent_DoesNotContainClientSecretValue()
+        {
+            using (var context = GetDbContext())
+            {
+                var auditLoggerMock = new Mock<IAuditEventLogger>();
+                auditLoggerMock
+                    .Setup(x => x.LogEventAsync(It.IsAny<ClientRequestedEvent>()))
+                    .Returns(Task.CompletedTask);
+
+                var clientService = GetClientService(context, auditLoggerMock.Object);
+                var client = ClientDtoMock.GenerateRandomClient(0);
+                var clientEntity = client.ToEntity();
+                clientEntity.ClientSecrets.Add(new global::Duende.IdentityServer.EntityFramework.Entities.ClientSecret
+                {
+                    Type = "SharedSecret",
+                    Description = "Test secret",
+                    Value = "hashed-secret-value",
+                    Created = DateTime.UtcNow
+                });
+
+                await context.Clients.AddAsync(clientEntity);
+                await context.SaveChangesAsync();
+
+                var loadedClient = await clientService.GetClientAsync(clientEntity.Id);
+
+                loadedClient.ClientSecrets.Should().ContainSingle();
+                loadedClient.ClientSecrets[0].Value.Should().Be("hashed-secret-value");
+                auditLoggerMock.Verify(x => x.LogEventAsync(It.Is<ClientRequestedEvent>(e =>
+                    e.ClientDto.ClientSecrets.Count == 1 &&
+                    e.ClientDto.ClientSecrets[0].Value == null)), Times.Once);
             }
         }
 
@@ -694,11 +739,92 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Services
                 var secretsDto = await clientService.GetClientSecretAsync(secret.Id);
 
                 clientSecretsDto.Value.Should().Be(clientSecret.Value);
+                secretsDto.Value.Should().BeNull();
 
                 //Assert
                 clientSecretsDto.Should().BeEquivalentTo(secretsDto, options => options.Excluding(o => o.ClientSecretId)
                     .Excluding(o => o.ClientName)
                     .Excluding(o => o.Value));
+            }
+        }
+
+        [Fact]
+        public async Task GetClientSecretsAsync_RedactsSecretValues()
+        {
+            using (var context = GetDbContext())
+            {
+                var clientService = GetClientService(context);
+                var client = ClientDtoMock.GenerateRandomClient(0);
+
+                await clientService.AddClientAsync(client);
+
+                var clientEntity = await context.Clients.Where(x => x.ClientId == client.ClientId).SingleOrDefaultAsync();
+                var clientSecret = ClientDtoMock.GenerateRandomClientSecret(0, clientEntity.Id);
+
+                await clientService.AddClientSecretAsync(clientSecret);
+
+                var secretsDto = await clientService.GetClientSecretsAsync(clientEntity.Id);
+
+                secretsDto.ClientSecrets.Should().NotBeEmpty();
+                secretsDto.ClientSecrets.Should().OnlyContain(x => x.Value == null);
+            }
+        }
+
+        [Fact]
+        public async Task GetClientSecretsAsync_AuditEvent_RedactsSecretValues()
+        {
+            using (var context = GetDbContext())
+            {
+                var auditLoggerMock = new Mock<IAuditEventLogger>();
+                auditLoggerMock
+                    .Setup(x => x.LogEventAsync(It.IsAny<ClientSecretsRequestedEvent>()))
+                    .Returns(Task.CompletedTask);
+
+                var clientService = GetClientService(context, auditLoggerMock.Object);
+                var client = ClientDtoMock.GenerateRandomClient(0);
+
+                await clientService.AddClientAsync(client);
+
+                var clientEntity = await context.Clients.Where(x => x.ClientId == client.ClientId).SingleOrDefaultAsync();
+                var clientSecret = ClientDtoMock.GenerateRandomClientSecret(0, clientEntity.Id);
+
+                await clientService.AddClientSecretAsync(clientSecret);
+
+                await clientService.GetClientSecretsAsync(clientEntity.Id);
+
+                auditLoggerMock.Verify(x => x.LogEventAsync(It.Is<ClientSecretsRequestedEvent>(e =>
+                    e.ClientSecrets.ClientSecrets.Count > 0 &&
+                    e.ClientSecrets.ClientSecrets.All(s => s.Value == null))), Times.Once);
+            }
+        }
+
+        [Fact]
+        public async Task GetClientSecretAsync_AuditEvent_RedactsSecretValue()
+        {
+            using (var context = GetDbContext())
+            {
+                var auditLoggerMock = new Mock<IAuditEventLogger>();
+                auditLoggerMock
+                    .Setup(x => x.LogEventAsync(It.IsAny<ClientSecretRequestedEvent>()))
+                    .Returns(Task.CompletedTask);
+
+                var clientService = GetClientService(context, auditLoggerMock.Object);
+                var client = ClientDtoMock.GenerateRandomClient(0);
+
+                await clientService.AddClientAsync(client);
+
+                var clientEntity = await context.Clients.Where(x => x.ClientId == client.ClientId).SingleOrDefaultAsync();
+                var clientSecret = ClientDtoMock.GenerateRandomClientSecret(0, clientEntity.Id);
+
+                await clientService.AddClientSecretAsync(clientSecret);
+
+                var secret = await context.ClientSecrets.Where(x => x.Value == clientSecret.Value && x.Client.Id == clientEntity.Id)
+                    .SingleOrDefaultAsync();
+
+                await clientService.GetClientSecretAsync(secret.Id);
+
+                auditLoggerMock.Verify(x => x.LogEventAsync(It.Is<ClientSecretRequestedEvent>(e =>
+                    e.ClientSecret.Value == null)), Times.Once);
             }
         }
 

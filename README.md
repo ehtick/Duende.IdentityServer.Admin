@@ -1,35 +1,98 @@
-![Logo](docs/Images/logo.svg)
+<div align="center">
 
-# Skoruba.Duende.IdentityServer.Admin v3 🚀
+<img src="docs/Images/logo.svg" alt="Skoruba Duende IdentityServer Admin" width="150" />
 
-Modern admin UI for **Duende IdentityServer** and **ASP.NET Core Identity**.
+# Skoruba Duende IdentityServer Admin
 
-![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
-![React](https://img.shields.io/badge/React-18-61DAFB)
-![License](https://img.shields.io/badge/license-Apache%202.0-blue)
-[![Discord](https://img.shields.io/badge/Discord-Skoruba-%235865F2)](https://discord.gg/qTqQCSKWkX)
+### Modern administration UI for Duende IdentityServer and ASP.NET Core Identity
+
+Manage IdentityServer clients and resources, ASP.NET Core Identity users and roles,
+configuration health, auditing, and security from one modern interface.
+
+<br />
+
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge)](LICENSE)
+[![Discord](https://img.shields.io/badge/Discord-Skoruba-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/qTqQCSKWkX)
+
+<br />
+
+[**Installation**](#-installation-via-dotnet-new-template) ·
+[**Local Development**](#-quick-start--local-development) ·
+[**Docker**](#-running-via-docker-optional) ·
+[**Roadmap**](#-roadmap--changelog) ·
+[**Discord**](https://discord.gg/qTqQCSKWkX)
+
+</div>
+
+<br />
+
+<p align="center">
+  <img
+    src="docs/Images/light.png"
+    alt="Skoruba Duende IdentityServer Admin dashboard"
+    width="100%"
+  />
+</p>
+
+> [!IMPORTANT]
+>
+> ## Version 3.0.0 is here 🚀
+>
+> **Version 3.0.0** is the stable release of **Skoruba Duende IdentityServer Admin**.
+> It delivers a completely redesigned administration experience built with
+> **React, TypeScript, Tailwind CSS, shadcn/ui, and .NET 10**.
+>
+> See the [roadmap and changelog](#-roadmap--changelog) for release history and upcoming features.
 
 ---
 
-## Versions
+## Highlights
 
-- 🎉 **Next generation Admin UI: v3.0.0-rc4**
-  - The upcoming stable v3 release is now available as a release candidate.
-  - Built with React, TypeScript, Tailwind CSS, Tailwind CSS, shadcn/ui, and a .NET 10 REST API backend.
-  - Includes new monitoring features, wizard flows, and many UX improvements.
+|     | Area                  | Highlights                                                                  |
+| --- | --------------------- | --------------------------------------------------------------------------- |
+| 🧭  | **New Admin UI**      | React, TypeScript, Tailwind CSS, and shadcn/ui                              |
+| ⚙️  | **Modern backend**    | .NET 10 and Duende IdentityServer 7.4.7                                     |
+| 📊  | **Monitoring**        | Dashboards, configuration rules, and issue tracking                         |
+| 🧙  | **Client management** | Improved workflows and guided client creation wizard                        |
+| 🔐  | **Authentication**    | Passkey support in STS Identity                                             |
+| 🧩  | **Mapping**           | Mapperly-based mapping pipeline and customization points                    |
+| 🛡️  | **Security**          | Hardened audit logging and stronger validation                              |
+| 🧪  | **Quality**           | Expanded Playwright UI, Admin API, STS, repository, and audit test coverage |
 
-- 📦 **Previous stable version: v2.7.0**
-  - Still available for existing v2 installations on the `release/2.7.0` branch.
+---
+
+## Contents
+
+- [Administration UI Preview](#administration-ui-preview)
+- [Prerequisites](#-prerequisites)
+- [Installation via `dotnet new` Template](#-installation-via-dotnet-new-template)
+- [Quick Start – Local Development](#-quick-start--local-development)
+- [Running via Docker](#-running-via-docker-optional)
+- [EF Core & Data Access](#️-ef-core--data-access)
+- [Authentication & Authorization](#-authentication--authorization)
+- [Azure Key Vault Integration](#-azure-key-vault-integration)
+- [Logging](#-logging)
+- [Audit Logging](#-audit-logging)
+- [External Authentication Providers](#-external-authentication-providers)
+- [Email Service](#-email-service)
+- [Health Checks](#-health-checks)
+- [Localization](#-localization)
+- [API & Swagger](#-api--swagger)
+- [STS Configuration](#️-sts-configuration)
+- [Identity Mapping Customization](#-identity-mapping-customization)
+- [Solution Overview](#-solution-overview)
+- [Roadmap & Changelog](#-roadmap--changelog)
+- [License](#-license)
+- [Acknowledgements](#-acknowledgements)
+- [Contact & Support](#-contact--support)
 
 ---
 
 ## Administration UI Preview
 
-The UI is built with **Tailwind CSS** and **shadcn/ui** components.
-
-### 🧭 Dashboard (Light)
-
-![Admin-preview](docs/Images/light.png)
+Explore the redesigned administration experience, built with **Tailwind CSS** and **shadcn/ui** components.
 
 ### 🌙 Dashboard (Dark)
 
@@ -38,10 +101,6 @@ The UI is built with **Tailwind CSS** and **shadcn/ui** components.
 ### 🧙‍♂️ Client Creation – Wizard Flow
 
 ![Admin-Client-Wizard](docs/Images/client-wizard.png)
-
-### 📋 Client Creation – Summary
-
-![Admin-Client-Summary](docs/Images/client-summary.png)
 
 ### 💼 Client Management
 
@@ -64,10 +123,6 @@ Define and track configuration rules for clients, API resources, and identity re
 
 ![Configuration-Issues](docs/Images/configuration-issues.png)
 
-#### 📈 Monitoring Dashboard
-
-![Monitoring-Charts](docs/Images/monitoring-charts.png)
-
 ### Solution Structure
 
 ![Project structure](docs/Images/project-structure.png)
@@ -79,7 +134,7 @@ Define and track configuration rules for clients, API resources, and identity re
 - .NET 10 SDK
 - Node.js 18+ and npm (required for the React client)
 - SQL Server (default LocalDB) or PostgreSQL
-- Duende IdentityServer 7.4.5
+- Duende IdentityServer 7.4.7
 
 > **Note:** Using older .NET versions may cause 502.5 errors on IIS or application startup failures.
 
@@ -96,7 +151,7 @@ Define and track configuration rules for clients, API resources, and identity re
 ### 1. Install the template
 
 ```sh
-dotnet new install Skoruba.Duende.IdentityServer.Admin.Templates::3.0.0-rc4
+dotnet new install Skoruba.Duende.IdentityServer.Admin.Templates::3.0.0
 ```
 
 ### 2. Create a new project
@@ -250,8 +305,6 @@ docker-compose up -d
 Docker images are available on [Docker Hub](https://hub.docker.com/u/skoruba).
 
 To publish images, check `build/publish-docker-images.ps1` and update the profile name.
-
----
 
 ---
 
@@ -625,9 +678,19 @@ Customizers implement:
 - `IIdentityUserMappingCustomizer<TUserDto, TUser>`
 - `IIdentityRoleMappingCustomizer<TRoleDto, TRole>`
 
+If your custom user DTO exposes additional audit-sensitive fields, also implement
+`IIdentityUserAuditSanitizer<TUserDto>` on the user mapping customizer. The built-in
+audit sanitizer always redacts `PasswordHash`, `SecurityStamp`, and
+`ConcurrencyStamp` by property name.
+
 ### 3. Full mapper override
 
 If you need full control, replace the default `IIdentityDataMapper<...>` registration in DI with your own implementation after calling `AddAdminAspNetIdentityServices`.
+Custom mapper implementations do not need to implement audit sanitization for
+backward compatibility, but they can implement
+`IIdentityAuditDataMapper<TUserDto, TUsersDto>` when they need custom audit
+redaction. Without it, audit logging falls back to the built-in redaction for
+`PasswordHash`, `SecurityStamp`, and `ConcurrencyStamp`.
 
 ---
 

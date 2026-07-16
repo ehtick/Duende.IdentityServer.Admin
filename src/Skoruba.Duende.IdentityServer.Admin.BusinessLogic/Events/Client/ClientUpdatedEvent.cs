@@ -3,6 +3,7 @@
 
 using Skoruba.AuditLogging.Events;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.Configuration;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.Client
 {
@@ -13,8 +14,8 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.Client
 
         public ClientUpdatedEvent(ClientDto originalClient, ClientDto client)
         {
-            OriginalClient = originalClient;
-            Client = client;
+            OriginalClient = AuditEventDataSanitizer.Sanitize(originalClient);
+            Client = AuditEventDataSanitizer.Sanitize(client);
         }
     }
 }

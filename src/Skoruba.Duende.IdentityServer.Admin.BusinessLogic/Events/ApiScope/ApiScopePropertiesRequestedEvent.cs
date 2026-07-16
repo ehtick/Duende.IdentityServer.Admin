@@ -3,6 +3,7 @@
 
 using Skoruba.AuditLogging.Events;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.Configuration;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.ApiScope
 {
@@ -11,7 +12,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.ApiScope
         public ApiScopePropertiesRequestedEvent(int apiScopeId, ApiScopePropertiesDto apiScopeProperties)
         {
             ApiScopeId = apiScopeId;
-            ApiResourceProperties = apiScopeProperties;
+            ApiResourceProperties = AuditEventDataSanitizer.Sanitize(apiScopeProperties);
         }
 
         public int ApiScopeId { get; set; }

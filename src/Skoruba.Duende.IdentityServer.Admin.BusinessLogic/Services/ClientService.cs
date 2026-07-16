@@ -368,10 +368,9 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Services
             clientSecretsDto.ClientId = clientId;
             clientSecretsDto.ClientName = ViewHelpers.GetClientName(clientInfo.ClientId, clientInfo.ClientName);
 
-            // remove secret value from dto
-            clientSecretsDto.ClientSecrets.ForEach(x=> x.Value = null);
+            clientSecretsDto.ClientSecrets.ForEach(x => x.Value = null);
 
-            await AuditEventLogger.LogEventAsync(new ClientSecretsRequestedEvent(clientSecretsDto.ClientId, clientSecretsDto.ClientSecrets.Select(x => (x.Id, x.Type, x.Expiration)).ToList()));
+            await AuditEventLogger.LogEventAsync(new ClientSecretsRequestedEvent(clientSecretsDto));
 
             return clientSecretsDto;
         }
@@ -388,10 +387,9 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Services
             clientSecretsDto.ClientId = clientSecret.Client.Id;
             clientSecretsDto.ClientName = ViewHelpers.GetClientName(clientInfo.ClientId, clientInfo.ClientName);
 
-            // remove secret value for dto
             clientSecretsDto.Value = null;
 
-            await AuditEventLogger.LogEventAsync(new ClientSecretRequestedEvent(clientSecretsDto.ClientId, clientSecretsDto.ClientSecretId, clientSecretsDto.Type, clientSecretsDto.Expiration));
+            await AuditEventLogger.LogEventAsync(new ClientSecretRequestedEvent(clientSecretsDto));
 
             return clientSecretsDto;
         }

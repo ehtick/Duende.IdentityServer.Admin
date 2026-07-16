@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -18,7 +17,6 @@ using Skoruba.Duende.IdentityServer.STS.Identity.Configuration.Constants;
 using Skoruba.Duende.IdentityServer.STS.Identity.Configuration.Interfaces;
 using Skoruba.Duende.IdentityServer.STS.Identity.Helpers;
 using Skoruba.Duende.IdentityServer.STS.Identity.Passkeys;
-using Microsoft.AspNetCore.Identity;
 
 namespace Skoruba.Duende.IdentityServer.STS.Identity
 {
@@ -68,16 +66,7 @@ namespace Skoruba.Duende.IdentityServer.STS.Identity
             // Add IHttpContextAccessor for Passkey TagHelper
             services.AddHttpContextAccessor();
 
-            // Configure IdentityPasskeyOptions for development
-            if (Environment.IsDevelopment())
-            {
-                services.Configure<IdentityPasskeyOptions>(options =>
-                {
-                    // Allow localhost origins for development
-                    options.ValidateOrigin = context => ValueTask.FromResult(
-                        context.Origin.StartsWith("https://localhost") || context.Origin.StartsWith("http://localhost"));
-                });
-            }
+            services.ConfigurePasskeyOptions(Configuration, Environment.IsDevelopment());
 
             services.AddIdSHealthChecks<IdentityServerConfigurationDbContext, IdentityServerPersistedGrantDbContext, AdminIdentityDbContext, IdentityServerDataProtectionDbContext>(Configuration);
         }

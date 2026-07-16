@@ -1,21 +1,21 @@
-﻿// Copyright (c) Jan Škoruba. All Rights Reserved.
+// Copyright (c) Jan Škoruba. All Rights Reserved.
 // Licensed under the Apache License, Version 2.0.
 
 using System;
+using System.Linq;
 using System.Threading.Tasks;
-using Duende.IdentityServer.EntityFramework.Options;
+using Bogus;
+using Duende.IdentityServer.EntityFramework.Entities;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Skoruba.AuditLogging.Services;
-using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Resources;
-using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Services;
-using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Services.Interfaces;
-using Skoruba.Duende.IdentityServer.Admin.EntityFramework.Identity.Repositories;
-using Skoruba.Duende.IdentityServer.Admin.EntityFramework.Identity.Repositories.Interfaces;
-using Skoruba.Duende.IdentityServer.Admin.EntityFramework.Shared.DbContexts;
-using Skoruba.Duende.IdentityServer.Admin.EntityFramework.Shared.Entities.Identity;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.PersistedGrant;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Resources;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Services;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Services.Interfaces;
+using Skoruba.Duende.IdentityServer.Admin.EntityFramework.Entities;
+using Skoruba.Duende.IdentityServer.Admin.EntityFramework.Extensions.Common;
+using Skoruba.Duende.IdentityServer.Admin.EntityFramework.Repositories.Interfaces;
 using Skoruba.Duende.IdentityServer.Admin.UnitTests.Mocks;
 using Xunit;
 
@@ -23,158 +23,152 @@ namespace Skoruba.Duende.IdentityServer.Admin.UnitTests.Services
 {
     public class PersistedGrantServiceTests
     {
-        public PersistedGrantServiceTests()
+        private static readonly Faker Faker = new();
+
+        [Fact]
+        public async Task GetPersistedGrantsByUsersAsync_ReturnsPagedPersistedGrantSubjects()
         {
-            var identityDatabaseName = Guid.NewGuid().ToString();
+            var pagedPersistedGrants = new PagedList<PersistedGrantDataView>
+            {
+                TotalCount = 2,
+                PageSize = 10
+            };
+            pagedPersistedGrants.Data.Add(new PersistedGrantDataView
+            {
+                SubjectId = Faker.Random.Guid().ToString(),
+                SubjectName = Faker.Name.FullName()
+            });
+            pagedPersistedGrants.Data.Add(new PersistedGrantDataView
+            {
+                SubjectId = Faker.Random.Guid().ToString(),
+                SubjectName = Faker.Name.FullName()
+            });
 
-            _identityDbContextOptions = new DbContextOptionsBuilder<AdminIdentityDbContext>()
-                .UseInMemoryDatabase(identityDatabaseName)
-                .Options;
-        }
+            var repositoryMock = new Mock<IPersistedGrantRepository>();
+            repositoryMock
+                .Setup(x => x.GetPersistedGrantsByUsersAsync("user", 2, 10))
+                .ReturnsAsync(pagedPersistedGrants);
 
-        private readonly DbContextOptions<AdminIdentityDbContext> _identityDbContextOptions;
+            var auditLoggerMock = new Mock<IAuditEventLogger>();
+            auditLoggerMock
+                .Setup(x => x.LogEventAsync(It.IsAny<PersistedGrantsByUsersRequestedEvent>()))
+                .Returns(Task.CompletedTask);
 
-        private IdentityServerPersistedGrantDbContext GetDbContext()
-        {
-            var serviceCollection = new ServiceCollection();
+            var resourcesMock = new Mock<IPersistedGrantServiceResources>();
+            IPersistedGrantService service = new PersistedGrantService(repositoryMock.Object, resourcesMock.Object, auditLoggerMock.Object);
 
-            serviceCollection.AddSingleton(new ConfigurationStoreOptions());
-            serviceCollection.AddSingleton(new OperationalStoreOptions());
+            var result = await service.GetPersistedGrantsByUsersAsync("user", 2, 10);
 
-            serviceCollection.AddDbContext<IdentityServerPersistedGrantDbContext>(builder => builder.UseInMemoryDatabase(Guid.NewGuid().ToString()));
-
-            var serviceProvider = serviceCollection.BuildServiceProvider();
-            var context = serviceProvider.GetService<IdentityServerPersistedGrantDbContext>();
-
-            return context;
-        }
-
-        private IPersistedGrantAspNetIdentityRepository GetPersistedGrantRepository(AdminIdentityDbContext identityDbContext, IdentityServerPersistedGrantDbContext context)
-        {
-            var persistedGrantRepository = new PersistedGrantAspNetIdentityRepository<AdminIdentityDbContext, IdentityServerPersistedGrantDbContext, UserIdentity, UserIdentityRole, string, UserIdentityUserClaim, UserIdentityUserRole, UserIdentityUserLogin, UserIdentityRoleClaim, UserIdentityUserToken, UserIdentityPasskey>(identityDbContext, context);
-
-            return persistedGrantRepository;
-        }
-
-        private IPersistedGrantAspNetIdentityService
-            GetPersistedGrantService(IPersistedGrantAspNetIdentityRepository repository, IPersistedGrantAspNetIdentityServiceResources persistedGrantServiceResources, IAuditEventLogger auditEventLogger)
-        {
-            var persistedGrantService = new PersistedGrantAspNetIdentityService(repository,
-                persistedGrantServiceResources, auditEventLogger);
-
-            return persistedGrantService;
+            result.TotalCount.Should().Be(pagedPersistedGrants.TotalCount);
+            result.PageSize.Should().Be(pagedPersistedGrants.PageSize);
+            result.PersistedGrants.Should().HaveCount(pagedPersistedGrants.Data.Count);
+            result.PersistedGrants.Select(x => x.SubjectId).Should().BeEquivalentTo(pagedPersistedGrants.Data.Select(x => x.SubjectId));
         }
 
         [Fact]
-        public async Task GetPersistedGrantAsync()
+        public async Task GetPersistedGrantsByUserAsync_ReturnsPagedPersistedGrants()
         {
-            using (var context = GetDbContext())
+            var subjectId = Faker.Random.Guid().ToString();
+            var pagedPersistedGrants = new PagedList<PersistedGrant>
             {
-                using (var identityDbContext = new AdminIdentityDbContext(_identityDbContextOptions))
-                {
-                    var persistedGrantRepository = GetPersistedGrantRepository(identityDbContext, context);
+                TotalCount = 2,
+                PageSize = 5
+            };
+            pagedPersistedGrants.Data.Add(PersistedGrantMock.GenerateRandomPersistedGrant(Guid.NewGuid().ToString(), subjectId));
+            pagedPersistedGrants.Data.Add(PersistedGrantMock.GenerateRandomPersistedGrant(Guid.NewGuid().ToString(), subjectId));
 
-                    var localizerMock = new Mock<IPersistedGrantAspNetIdentityServiceResources>();
-                    var localizer = localizerMock.Object;
+            var repositoryMock = new Mock<IPersistedGrantRepository>();
+            repositoryMock
+                .Setup(x => x.ExistsPersistedGrantsAsync(subjectId))
+                .ReturnsAsync(true);
+            repositoryMock
+                .Setup(x => x.GetPersistedGrantsByUserAsync(subjectId, 1, 5))
+                .ReturnsAsync(pagedPersistedGrants);
 
-                    var auditLoggerMock = new Mock<IAuditEventLogger>();
-                    var auditLogger = auditLoggerMock.Object;
-                    
-                    var persistedGrantService = GetPersistedGrantService(persistedGrantRepository, localizer, auditLogger);
+            var auditLoggerMock = new Mock<IAuditEventLogger>();
+            auditLoggerMock
+                .Setup(x => x.LogEventAsync(It.IsAny<PersistedGrantsByUserRequestedEvent>()))
+                .Returns(Task.CompletedTask);
 
-                    //Generate persisted grant
-                    var persistedGrantKey = Guid.NewGuid().ToString();
-                    var persistedGrant = PersistedGrantMock.GenerateRandomPersistedGrant(persistedGrantKey);
+            var resourcesMock = new Mock<IPersistedGrantServiceResources>();
+            IPersistedGrantService service = new PersistedGrantService(repositoryMock.Object, resourcesMock.Object, auditLoggerMock.Object);
 
-                    //Try add new persisted grant
-                    await context.PersistedGrants.AddAsync(persistedGrant);
-                    await context.SaveChangesAsync();
+            var result = await service.GetPersistedGrantsByUserAsync(subjectId, 1, 5);
 
-                    //Try get persisted grant
-                    var persistedGrantAdded = await persistedGrantService.GetPersistedGrantAsync(persistedGrantKey);
-
-                    //Assert
-                    persistedGrantAdded.Should().BeEquivalentTo(persistedGrant);
-                }
-            }
+            result.TotalCount.Should().Be(pagedPersistedGrants.TotalCount);
+            result.PageSize.Should().Be(pagedPersistedGrants.PageSize);
+            result.PersistedGrants.Should().HaveCount(pagedPersistedGrants.Data.Count);
+            result.PersistedGrants.Select(x => x.Key).Should().BeEquivalentTo(pagedPersistedGrants.Data.Select(x => x.Key));
         }
 
         [Fact]
-        public async Task DeletePersistedGrantAsync()
+        public async Task GetPersistedGrantAsync_AuditEvent_DoesNotContainPersistedGrantData()
         {
-            using (var context = GetDbContext())
-            {
-                using (var identityDbContext = new AdminIdentityDbContext(_identityDbContextOptions))
-                {
-                    var persistedGrantRepository = GetPersistedGrantRepository(identityDbContext, context);
+            var persistedGrant = PersistedGrantMock.GenerateRandomPersistedGrant(Guid.NewGuid().ToString());
+            var repositoryMock = new Mock<IPersistedGrantRepository>();
+            repositoryMock.Setup(x => x.GetPersistedGrantAsync(persistedGrant.Key)).ReturnsAsync(persistedGrant);
 
-                    var localizerMock = new Mock<IPersistedGrantAspNetIdentityServiceResources>();
-                    var localizer = localizerMock.Object;
+            var auditLoggerMock = new Mock<IAuditEventLogger>();
+            auditLoggerMock
+                .Setup(x => x.LogEventAsync(It.IsAny<PersistedGrantRequestedEvent>()))
+                .Returns(Task.CompletedTask);
 
-                    var auditLoggerMock = new Mock<IAuditEventLogger>();
-                    var auditLogger = auditLoggerMock.Object;
+            var resourcesMock = new Mock<IPersistedGrantServiceResources>();
+            IPersistedGrantService service = new PersistedGrantService(repositoryMock.Object, resourcesMock.Object, auditLoggerMock.Object);
 
-                    var persistedGrantService = GetPersistedGrantService(persistedGrantRepository, localizer, auditLogger);
+            var result = await service.GetPersistedGrantAsync(persistedGrant.Key);
 
-                    //Generate persisted grant
-                    var persistedGrantKey = Guid.NewGuid().ToString();
-                    var persistedGrant = PersistedGrantMock.GenerateRandomPersistedGrant(persistedGrantKey);
-
-                    //Try add new persisted grant
-                    await context.PersistedGrants.AddAsync(persistedGrant);
-                    await context.SaveChangesAsync();
-
-                    //Try delete persisted grant
-                    await persistedGrantService.DeletePersistedGrantAsync(persistedGrantKey);
-
-                    var grant = await persistedGrantRepository.GetPersistedGrantAsync(persistedGrantKey);
-
-                    //Assert
-                    grant.Should().BeNull();
-                }
-            }
+            result.Data.Should().Be(persistedGrant.Data);
+            result.SessionId.Should().Be(persistedGrant.SessionId);
+            auditLoggerMock.Verify(x => x.LogEventAsync(It.Is<PersistedGrantRequestedEvent>(e =>
+                e.PersistedGrant.Data == null &&
+                e.PersistedGrant.SessionId == null)), Times.Once);
         }
 
         [Fact]
-        public async Task DeletePersistedGrantsAsync()
+        public async Task DeletePersistedGrantAsync_ReturnsDeletedPersistedGrantCount()
         {
-            using (var context = GetDbContext())
-            {
-                using (var identityDbContext = new AdminIdentityDbContext(_identityDbContextOptions))
-                {
-                    var persistedGrantRepository = GetPersistedGrantRepository(identityDbContext, context);
+            var persistedGrantKey = Guid.NewGuid().ToString();
 
-                    var localizerMock = new Mock<IPersistedGrantAspNetIdentityServiceResources>();
-                    var localizer = localizerMock.Object;
+            var repositoryMock = new Mock<IPersistedGrantRepository>();
+            repositoryMock
+                .Setup(x => x.DeletePersistedGrantAsync(persistedGrantKey))
+                .ReturnsAsync(1);
 
-                    var auditLoggerMock = new Mock<IAuditEventLogger>();
-                    var auditLogger = auditLoggerMock.Object;
+            var auditLoggerMock = new Mock<IAuditEventLogger>();
+            auditLoggerMock
+                .Setup(x => x.LogEventAsync(It.IsAny<PersistedGrantDeletedEvent>()))
+                .Returns(Task.CompletedTask);
 
-                    var persistedGrantService = GetPersistedGrantService(persistedGrantRepository, localizer, auditLogger);
+            var resourcesMock = new Mock<IPersistedGrantServiceResources>();
+            IPersistedGrantService service = new PersistedGrantService(repositoryMock.Object, resourcesMock.Object, auditLoggerMock.Object);
 
-                    const int subjectId = 1;
+            var result = await service.DeletePersistedGrantAsync(persistedGrantKey);
 
-                    for (var i = 0; i < 4; i++)
-                    {
-                        //Generate persisted grant
-                        var persistedGrantKey = Guid.NewGuid().ToString();
-                        var persistedGrant = PersistedGrantMock.GenerateRandomPersistedGrant(persistedGrantKey, subjectId.ToString());
+            result.Should().Be(1);
+        }
 
-                        //Try add new persisted grant
-                        await context.PersistedGrants.AddAsync(persistedGrant);
-                    }
+        [Fact]
+        public async Task DeletePersistedGrantsAsync_ReturnsDeletedPersistedGrantCount()
+        {
+            var subjectId = Faker.Random.Guid().ToString();
 
-                    await context.SaveChangesAsync();
+            var repositoryMock = new Mock<IPersistedGrantRepository>();
+            repositoryMock
+                .Setup(x => x.DeletePersistedGrantsAsync(subjectId))
+                .ReturnsAsync(2);
 
-                    //Try delete persisted grant
-                    await persistedGrantService.DeletePersistedGrantsAsync(subjectId.ToString());
+            var auditLoggerMock = new Mock<IAuditEventLogger>();
+            auditLoggerMock
+                .Setup(x => x.LogEventAsync(It.IsAny<PersistedGrantsDeletedEvent>()))
+                .Returns(Task.CompletedTask);
 
-                    var grant = await persistedGrantRepository.GetPersistedGrantsByUserAsync(subjectId.ToString());
+            var resourcesMock = new Mock<IPersistedGrantServiceResources>();
+            IPersistedGrantService service = new PersistedGrantService(repositoryMock.Object, resourcesMock.Object, auditLoggerMock.Object);
 
-                    //Assert
-                    grant.TotalCount.Should().Be(0);
-                }
-            }
+            var result = await service.DeletePersistedGrantsAsync(subjectId);
+
+            result.Should().Be(2);
         }
     }
 }

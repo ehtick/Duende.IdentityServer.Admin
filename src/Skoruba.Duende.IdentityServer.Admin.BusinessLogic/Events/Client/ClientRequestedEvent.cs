@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 using Skoruba.AuditLogging.Events;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.Configuration;
 
 namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.Client
@@ -12,7 +13,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.Client
 
         public ClientRequestedEvent(ClientDto clientDto)
         {
-            ClientDto = clientDto;
+            ClientDto = AuditEventDataSanitizer.Sanitize(clientDto);
         }
     }
 }

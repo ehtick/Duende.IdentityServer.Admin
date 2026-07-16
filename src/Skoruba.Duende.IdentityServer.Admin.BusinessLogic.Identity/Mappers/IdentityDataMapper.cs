@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Dtos.Identity;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Helpers;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Mappers.Customization;
 using Skoruba.Duende.IdentityServer.Admin.EntityFramework.Extensions.Common;
 
@@ -18,7 +19,8 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Mappers
         TUserClaimDto, TRoleClaimDto>
         : IIdentityDataMapper<TUserDto, TRoleDto, TUser, TRole, TKey, TUserClaim, TUserLogin, TRoleClaim,
             TUsersDto, TRolesDto, TUserRolesDto, TUserClaimsDto, TUserProviderDto, TUserProvidersDto, TRoleClaimsDto,
-            TUserClaimDto, TRoleClaimDto>
+            TUserClaimDto, TRoleClaimDto>,
+          IIdentityAuditDataMapper<TUserDto, TUsersDto>
         where TUserDto : UserDto<TKey>
         where TRoleDto : RoleDto<TKey>
         where TUser : IdentityUser<TKey>
@@ -88,8 +90,8 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Mappers
             nameof(UserProviderDto<TKey>.UserId),
             nameof(UserProviderDto<TKey>.UserName)
         };
-
         private readonly IReadOnlyCollection<IIdentityUserMappingCustomizer<TUserDto, TUser>> _userMappingCustomizers;
+        private readonly IReadOnlyCollection<IIdentityUserAuditSanitizer<TUserDto>> _userAuditSanitizers;
         private readonly IReadOnlyCollection<IIdentityRoleMappingCustomizer<TRoleDto, TRole>> _roleMappingCustomizers;
         private static readonly ConcurrentDictionary<Type, IReadOnlyDictionary<string, PropertyInfo>> ReadablePropertiesCache = new();
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> WritablePropertiesCache = new();
@@ -99,6 +101,7 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Mappers
             IEnumerable<IIdentityRoleMappingCustomizer<TRoleDto, TRole>> roleMappingCustomizers = null)
         {
             _userMappingCustomizers = userMappingCustomizers?.ToArray() ?? Array.Empty<IIdentityUserMappingCustomizer<TUserDto, TUser>>();
+            _userAuditSanitizers = _userMappingCustomizers.OfType<IIdentityUserAuditSanitizer<TUserDto>>().ToArray();
             _roleMappingCustomizers = roleMappingCustomizers?.ToArray() ?? Array.Empty<IIdentityRoleMappingCustomizer<TRoleDto, TRole>>();
         }
 
@@ -175,6 +178,37 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Mappers
             roleClaimsDto.Claims = pagedClaims.Data?.Select(MapRoleClaimToClaimDto).ToList() ?? [];
 
             return roleClaimsDto;
+        }
+
+        public TUserDto SanitizeAuditUser(TUserDto user)
+        {
+            var sanitizedUser = AuditEventDataSanitizer.SanitizeUser(user);
+            if (sanitizedUser == null)
+            {
+                return default;
+            }
+
+            ApplyUserAuditSanitizers(sanitizedUser);
+            return sanitizedUser;
+        }
+
+        public TUsersDto SanitizeAuditUsers(TUsersDto users)
+        {
+            var sanitizedUsers = AuditEventDataSanitizer.SanitizeUsers<TUsersDto, TUserDto, TKey>(users);
+            if (sanitizedUsers?.Users == null)
+            {
+                return sanitizedUsers;
+            }
+
+            foreach (var user in sanitizedUsers.Users)
+            {
+                if (user != null)
+                {
+                    ApplyUserAuditSanitizers(user);
+                }
+            }
+
+            return sanitizedUsers;
         }
 
         public TUserDto MapUserToDto(TUser source)
@@ -381,6 +415,14 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Identity.Mappers
             foreach (var customizer in _userMappingCustomizers)
             {
                 customizer.MapEntityToDto(source, destination);
+            }
+        }
+
+        private void ApplyUserAuditSanitizers(TUserDto user)
+        {
+            foreach (var sanitizer in _userAuditSanitizers)
+            {
+                sanitizer.SanitizeAuditUser(user);
             }
         }
 

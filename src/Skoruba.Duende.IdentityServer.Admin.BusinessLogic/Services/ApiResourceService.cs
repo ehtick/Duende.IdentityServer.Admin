@@ -1,12 +1,12 @@
 ﻿// Copyright (c) Jan Škoruba. All Rights Reserved.
 // Licensed under the Apache License, Version 2.0.
 
-using System.Linq;
 using System.Threading.Tasks;
 using Duende.IdentityServer.Models;
 using Skoruba.AuditLogging.Services;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Dtos.Configuration;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Events.ApiResource;
+using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Helpers;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Mappers;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Resources;
 using Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Services.Interfaces;
@@ -215,10 +215,9 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Services
             apiSecretsDto.ApiResourceId = apiResourceId;
             apiSecretsDto.ApiResourceName = await ApiResourceRepository.GetApiResourceNameAsync(apiResourceId);
 
-            // remove secret value from dto
             apiSecretsDto.ApiSecrets.ForEach(x => x.Value = null);
 
-            await AuditEventLogger.LogEventAsync(new ApiSecretsRequestedEvent(apiSecretsDto.ApiResourceId, apiSecretsDto.ApiSecrets.Select(x => (x.Id, x.Type, x.Expiration)).ToList()));
+            await AuditEventLogger.LogEventAsync(new ApiSecretsRequestedEvent(apiSecretsDto));
 
             return apiSecretsDto;
         }
@@ -242,10 +241,9 @@ namespace Skoruba.Duende.IdentityServer.Admin.BusinessLogic.Services
             if (apiSecret == null) throw new UserFriendlyErrorPageException(string.Format(ApiResourceServiceResources.ApiSecretDoesNotExist().Description, apiSecretId), ApiResourceServiceResources.ApiSecretDoesNotExist().Description);
             var apiSecretsDto = apiSecret.ToModel();
 
-            // remove secret value for dto
             apiSecretsDto.Value = null;
 
-            await AuditEventLogger.LogEventAsync(new ApiSecretRequestedEvent(apiSecretsDto.ApiResourceId, apiSecretsDto.ApiSecretId, apiSecretsDto.Type, apiSecretsDto.Expiration));
+            await AuditEventLogger.LogEventAsync(new ApiSecretRequestedEvent(apiSecretsDto));
 
             return apiSecretsDto;
         }
